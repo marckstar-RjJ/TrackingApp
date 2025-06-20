@@ -1,29 +1,40 @@
 {
   "expo": {
-    "name": "BoaTrackingApp-New",
+    "name": "TrackingApp",
     "slug": "BoaTrackingApp-New",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo_app.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo_boa2.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1976D2"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "splash": {
+        "image": "./assets/logo_boa2.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1976D2"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/logo_app.png",
+        "backgroundColor": "#1976D2"
       },
-      "edgeToEdgeEnabled": true
+      "splash": {
+        "image": "./assets/logo_boa2.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1976D2"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.boa.tracking"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo_boa2.png"
     }
   }
 }

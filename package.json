@@ -6,13 +6,35 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "tunnel": "expo start --tunnel",
+    "usb": "expo start --localhost",
+    "clear": "expo start --clear",
+    "reset": "npm run clear && npm install"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-picker/picker": "^2.11.0",
+    "@react-navigation/bottom-tabs": "^7.3.15",
+    "@react-navigation/native": "^7.1.11",
+    "@react-navigation/stack": "^7.3.4",
     "expo": "~53.0.11",
+    "expo-barcode-scanner": "^13.0.1",
+    "expo-camera": "^16.1.8",
+    "expo-location": "~18.1.5",
+    "expo-sqlite": "^15.2.12",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
-    "react-native": "0.79.3"
+    "react-native": "0.79.3",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "^4.11.1",
+    "react-native-signature-canvas": "^4.7.4",
+    "react-native-vector-icons": "^10.2.0",
+    "react-native-webview": "13.13.5",
+    "expo-print": "~14.1.4",
+    "expo-sharing": "~13.1.5",
+    "expo-clipboard": "~7.1.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
