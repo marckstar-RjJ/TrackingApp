@@ -177,20 +177,19 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
             const body = {
               package_tracking: trackingNumber,
               event_type: selectedEventType,
-              description: notes || 'ninguna',
               location: currentLocation,
               operator: operator,
               notes: notes || '',
-              // Puedes agregar flight_number, airline, next_destination si aplica
+              timestamp: new Date().toISOString(),
             };
             try {
-              const res = await fetch('http://192.168.100.16:3000/api/events', {
+              const res = await fetch('http://192.168.100.16:3000/api/packages/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
               });
               const data = await res.json();
-              if (res.ok && data && data.id) {
+              if (res.ok) {
                 Alert.alert('Éxito', 'Evento registrado correctamente.');
                 // Limpiar y cerrar
                 setTrackingNumber('');
@@ -205,7 +204,7 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
                 setIsLoading(false);
               }
             } catch (e) {
-              Alert.alert('Error', 'No se pudo conectar con el servidor.');
+              Alert.alert('Error de Conexión', 'No se pudo conectar con el servidor.');
               setIsLoading(false);
             }
           }

@@ -6,21 +6,24 @@ export const BOA_COLORS = {
   success: '#4CAF50',      // Verde
   warning: '#FF9800',      // Naranja
   danger: '#F44336',       // Rojo
+  info: '#2196F3',         // Azul para información
   light: '#E3F2FD',        // Azul muy claro
   dark: '#1565C0',         // Azul muy oscuro
   white: '#FFFFFF',
   gray: '#757575',
   lightGray: '#F5F5F5',
-  background: '#f0f0f0',
+  darkGray: '#424242',     // Gris oscuro para texto
+  background: '#F0F3F5',    // Color de fondo general
+  cardBorder: '#E0E0E0',    // Borde suave para tarjetas
   cardBackground: 'rgba(25, 118, 210, 0.15)',
-  cardBorder: 'rgba(25, 118, 210, 0.2)',
   overlay: 'rgba(255, 255, 255, 0.1)',
   // Colores adicionales para componentes
   lightBlue: '#E3F2FD',    // Azul claro para botones
   lightRed: '#FFEBEE',     // Rojo claro para botones
-  darkGray: '#424242',     // Gris oscuro para texto
   red: '#F44336',          // Rojo
   blue: '#2196F3',         // Azul
+  gradientStart: '#1976D2',
+  gradientEnd: '#42A5F5',
 };
 
 // Estados de tracking

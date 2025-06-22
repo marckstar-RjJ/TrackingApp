@@ -5,7 +5,6 @@ import { BOA_COLORS } from '../theme';
 import { Header } from '../components/Header';
 import { ShippingRegistrationModal } from '../components/ShippingRegistrationModal';
 import { PackageScannerModal } from '../components/PackageScannerModal';
-import { checkInternalAlerts } from '../utils/tracking';
 
 export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) => {
   const [showShippingModal, setShowShippingModal] = useState(false);
@@ -13,7 +12,6 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
   const [showHistoryList, setShowHistoryList] = useState(false);
   const [realPackages, setRealPackages] = useState<any[]>([]);
   const [searchTracking, setSearchTracking] = useState('');
-  const [internalAlerts, setInternalAlerts] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -22,28 +20,14 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
         const data = await res.json();
         if (Array.isArray(data)) {
           setRealPackages(data);
-          // Procesar alertas internas
-          // Mapear eventos a formato TrackingItem
-          const trackingItems = data.map((pkg: any) => ({
-            ...pkg,
-            trackingNumber: pkg.tracking_number,
-            events: Array.isArray(pkg.events)
-              ? pkg.events.map((ev: any) => ({
-                  ...ev,
-                  timestamp: ev.timestamp ? new Date(ev.timestamp.replace(' ', 'T')) : null
-                }))
-              : [],
-          }));
-          setInternalAlerts(checkInternalAlerts(trackingItems));
         } else {
           setRealPackages([]);
-          setInternalAlerts([]);
         }
       } catch (e) {
         setRealPackages([]);
-        setInternalAlerts([]);
       }
     };
+
     fetchPackages();
   }, []);
 
@@ -81,50 +65,231 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
         />
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 10, padding: 12, minWidth: '90%' }}>
-              <Text style={{ fontSize: 20, fontWeight: '600', color: BOA_COLORS.primary, marginBottom: 4, textAlign: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 15, padding: 16, minWidth: '90%', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: BOA_COLORS.primary, marginBottom: 6, textAlign: 'center' }}>
                 ¡Bienvenido, {currentUser.name}!
               </Text>
-              <Text style={{ fontSize: 14, color: BOA_COLORS.dark, textAlign: 'center', fontWeight: '400' }}>Panel de Administración</Text>
+              <Text style={{ fontSize: 16, color: BOA_COLORS.dark, textAlign: 'center', fontWeight: '500' }}>Panel de Administración</Text>
             </View>
           </View>
+
           {/* Información del usuario */}
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-            <MaterialIcons name="person" size={24} color={BOA_COLORS.primary} />
-            <View style={{ marginLeft: 12 }}>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 15, padding: 18, flexDirection: 'row', alignItems: 'center', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+            <MaterialIcons name="admin-panel-settings" size={28} color={BOA_COLORS.primary} />
+            <View style={{ marginLeft: 15 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: BOA_COLORS.dark }}>{currentUser.name}</Text>
-              <Text style={{ fontSize: 14, color: BOA_COLORS.gray }}>{currentUser.email}</Text>
+              <Text style={{ fontSize: 14, color: BOA_COLORS.gray }}>Administrador del Sistema</Text>
+              <Text style={{ fontSize: 12, color: BOA_COLORS.primary }}>{currentUser.email}</Text>
             </View>
           </View>
-          {/* Panel de administración */}
+
+          {/* ÁREA LOGÍSTICA */}
           <View style={{ marginBottom: 24 }}>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <MaterialIcons name="dashboard" size={24} color={BOA_COLORS.primary} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: BOA_COLORS.primary, marginLeft: 8 }}>Panel de Administración</Text>
+            <View style={{ backgroundColor: 'rgba(156,39,176,0.1)', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <MaterialIcons name="local-shipping" size={24} color="#9C27B0" />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#9C27B0' }}>Área Logística</Text>
+                <Text style={{ fontSize: 13, color: BOA_COLORS.gray }}>Gestión de envíos y seguimiento de paquetes</Text>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
-              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, alignItems: 'center', flex: 1, minWidth: '45%' }} onPress={() => setShowShippingModal(true)}>
-                <MaterialIcons name="add-box" size={28} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 12, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 2 }}>Registrar Envío</Text>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => setShowShippingModal(true)}
+              >
+                <MaterialIcons name="add-box" size={32} color="#9C27B0" />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Registrar Envío</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Crear nuevo paquete en el sistema</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, alignItems: 'center', flex: 1, minWidth: '45%' }} onPress={() => setShowScannerModal(true)}>
-                <MaterialIcons name="qr-code-scanner" size={28} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 12, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 2 }}>Escanear Paquete</Text>
+
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => setShowScannerModal(true)}
+              >
+                <MaterialIcons name="qr-code-scanner" size={32} color="#9C27B0" />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Escanear Paquete</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Actualizar estado con escáner</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, alignItems: 'center', flex: 1, minWidth: '45%' }} onPress={() => navigation.navigate('Tracking', { currentUser })}>
-                <MaterialIcons name="local-shipping" size={28} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 12, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 2 }}>Seguimiento</Text>
+
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => navigation.navigate('Tracking', { currentUser })}
+              >
+                <MaterialIcons name="track-changes" size={32} color="#9C27B0" />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Seguimiento</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Consultar estado de paquetes</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, alignItems: 'center', flex: 1, minWidth: '45%' }} onPress={handleOpenHistoryList}>
-                <MaterialIcons name="history" size={28} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 12, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 2 }}>Historial</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, alignItems: 'center', flex: 1, minWidth: '45%' }} onPress={() => navigation.navigate('InternalAlerts', { currentUser })}>
-                <MaterialIcons name="notifications-active" size={28} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 12, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 2 }}>Alertas Internas</Text>
+
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={handleOpenHistoryList}
+              >
+                <MaterialIcons name="history" size={32} color="#9C27B0" />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Historial</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Ver historial completo</Text>
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* ÁREA DE ATENCIÓN AL CLIENTE */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ backgroundColor: 'rgba(76,175,80,0.1)', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <MaterialIcons name="support-agent" size={24} color={BOA_COLORS.success} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: BOA_COLORS.success }}>Atención al Cliente</Text>
+                <Text style={{ fontSize: 13, color: BOA_COLORS.gray }}>Gestión de reclamos y soporte</Text>
+              </View>
+            </View>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => navigation.navigate('AdminClaims', { currentUser, handleLogout })}
+              >
+                <MaterialIcons name="announcement" size={32} color={BOA_COLORS.success} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Reclamos</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Gestionar reclamos de usuarios</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => navigation.navigate('AdminReturns')}
+              >
+                <MaterialIcons name="assignment-return" size={32} color={BOA_COLORS.success} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Devoluciones</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Gestionar solicitudes de devolución</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ÁREA DE GESTIÓN OPERATIVA */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ backgroundColor: 'rgba(255,152,0,0.1)', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <MaterialIcons name="settings" size={24} color={BOA_COLORS.warning} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: BOA_COLORS.warning }}>Gestión Operativa</Text>
+                <Text style={{ fontSize: 13, color: BOA_COLORS.gray }}>Control y monitoreo del sistema</Text>
+              </View>
+            </View>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => navigation.navigate('InternalAlerts')}
+              >
+                <MaterialIcons name="notifications-active" size={32} color={BOA_COLORS.warning} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Alertas Internas</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Monitorear paquetes retrasados</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center', 
+                  flex: 1, 
+                  minWidth: '45%',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }} 
+                onPress={() => navigation.navigate('AllPreRegistrations')}
+              >
+                <MaterialIcons name="list-alt" size={32} color={BOA_COLORS.warning} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Pre-Registros</Text>
+                <Text style={{ fontSize: 11, color: BOA_COLORS.gray, textAlign: 'center', marginTop: 4 }}>Revisar y aprobar solicitudes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Modal/lista de paquetes para historial */}
           {showHistoryList && (
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
@@ -154,24 +319,6 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
                   <Text style={{ color: BOA_COLORS.danger, fontWeight: 'bold' }}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
-          {/* Panel de alertas internas */}
-          {internalAlerts.length > 0 && (
-            <View style={{ marginBottom: 24 }}>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <MaterialIcons name="notifications-active" size={24} color={BOA_COLORS.danger} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: BOA_COLORS.danger, marginLeft: 8 }}>Alertas Internas de Retraso</Text>
-              </View>
-              {internalAlerts.map(alert => (
-                <View key={alert.id} style={{ backgroundColor: getAlertColor(alert.severity), borderRadius: 12, padding: 16, marginBottom: 10 }}>
-                  <Text style={{ fontWeight: 'bold', color: '#fff', fontSize: 16 }}>{alert.title}</Text>
-                  <Text style={{ color: '#fff', marginTop: 4 }}>{alert.description}</Text>
-                  <Text style={{ color: '#fff', marginTop: 4, fontSize: 13 }}>Tracking: {alert.trackingNumber}</Text>
-                  <Text style={{ color: '#fff', marginTop: 2, fontSize: 13 }}>Última actualización: {alert.lastUpdate ? new Date(alert.lastUpdate).toLocaleString() : 'N/A'}</Text>
-                  <Text style={{ color: '#fff', marginTop: 2, fontSize: 13 }}>Retraso: {alert.timeSinceLastUpdate.toFixed(1)} horas</Text>
-                </View>
-              ))}
             </View>
           )}
         </ScrollView>

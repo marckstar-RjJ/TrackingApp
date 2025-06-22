@@ -94,90 +94,90 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
   return (
     <>
       <FullScreenLoader visible={isLoading} message="Creando cuenta..." />
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={styles.overlay}>
-          <View style={styles.modal}>
-            <Text style={styles.title}>Crear cuenta</Text>
-            
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          <Text style={styles.title}>Crear cuenta</Text>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre completo"
+            placeholderTextColor={BOA_COLORS.gray}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Correo electrónico"
+            placeholderTextColor={BOA_COLORS.gray}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          
+          <View style={styles.passwordContainer}>
             <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
+              style={[styles.input, { flex: 1, marginBottom: 0 }]} 
+              placeholder="Contraseña"
               placeholderTextColor={BOA_COLORS.gray}
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Correo electrónico"
-              placeholderTextColor={BOA_COLORS.gray}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
               autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
             />
-            
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]} 
-                placeholder="Contraseña"
-                placeholderTextColor={BOA_COLORS.gray}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
+            <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
+              <MaterialIcons
+                name={showPassword ? 'visibility' : 'visibility-off'}
+                size={22}
+                color={BOA_COLORS.gray}
               />
-              <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                <MaterialIcons
-                  name={showPassword ? 'visibility' : 'visibility-off'}
-                  size={22}
-                  color={BOA_COLORS.gray}
-                />
-              </TouchableOpacity>
-            </View>
-            {/* Indicaciones de contraseña */}
-            <Text style={styles.passwordHint}>
-              La contraseña debe tener al menos 6 caracteres, una mayúscula y un carácter especial.
-            </Text>
-            
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                placeholder="Confirmar contraseña"
-                placeholderTextColor={BOA_COLORS.gray}
-                secureTextEntry={!showConfirmPassword}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword((v) => !v)}>
-                <MaterialIcons
-                  name={showConfirmPassword ? 'visibility' : 'visibility-off'}
-                  size={22}
-                  color={BOA_COLORS.gray}
-                />
-              </TouchableOpacity>
-            </View>
-            
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            
-            <TouchableOpacity 
-              style={[styles.registerButton, isLoading && styles.disabledButton]} 
-              onPress={handleRegister}
-              disabled={isLoading}
-            >
-              <Text style={styles.registerButtonText}>
-                {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
-              </Text>
             </TouchableOpacity>
-            
-            <Pressable style={styles.close} onPress={onClose}>
-              <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
-            </Pressable>
           </View>
+          {/* Indicaciones de contraseña */}
+          <Text style={styles.passwordHint}>
+            La contraseña debe tener al menos 6 caracteres, una mayúscula y un carácter especial.
+          </Text>
+          
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              placeholder="Confirmar contraseña"
+              placeholderTextColor={BOA_COLORS.gray}
+              secureTextEntry={!showConfirmPassword}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity onPress={() => setShowConfirmPassword((v) => !v)}>
+              <MaterialIcons
+                name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                size={22}
+                color={BOA_COLORS.gray}
+              />
+            </TouchableOpacity>
+          </View>
+          
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          
+          <TouchableOpacity 
+            style={[styles.registerButton, isLoading && styles.disabledButton]} 
+            onPress={handleRegister}
+            disabled={isLoading}
+          >
+            <Text style={styles.registerButtonText}>
+              {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
+            </Text>
+          </TouchableOpacity>
+          
+          <Pressable style={styles.close} onPress={onClose}>
+            <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
+          </Pressable>
         </View>
-      </Modal>
+      </View>
+    </Modal>
     </>
   );
 };

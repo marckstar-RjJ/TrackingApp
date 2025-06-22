@@ -7,11 +7,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  Alert,
 } from 'react-native';
 import { BOA_COLORS } from '../theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { loginUser } from '../utils/auth';
+import { loginUser, requestPasswordReset } from '../utils/auth';
 import { FullScreenLoader } from './FullScreenLoader';
 
 interface LoginModalProps {
@@ -42,37 +41,57 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogi
       const user = await loginUser(email, password);
       if (!user) {
         setError('Usuario o contraseña incorrectos.');
-        setIsLoading(false);
         return;
       }
+      
+      onLoginSuccess(user);
+      
       setEmail('');
       setPassword('');
-      setError('');
-      onLoginSuccess(user);
-      onClose();
-      setIsLoading(false);
+      
     } catch (err) {
       setError('Error de red o inesperado. Intenta de nuevo.');
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleForgot = () => {
+  const handleForgotPassword = async () => {
     if (!forgotEmail || !forgotEmail.includes('@')) {
+      setError('Por favor, ingresa un email válido.');
       return;
     }
-    setForgotSent(true);
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await requestPasswordReset(forgotEmail);
+      if (result.success) {
+        setForgotSent(true);
+      } else {
+        setError(result.error || 'Error al solicitar recuperación');
+      }
+    } catch (err) {
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForgotForm = () => {
+    setShowForgot(false);
     setTimeout(() => {
-      setShowForgot(false);
-      setForgotSent(false);
       setForgotEmail('');
-    }, 2000);
+      setForgotSent(false);
+      setError('');
+    }, 500);
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <FullScreenLoader visible={isLoading} message="Iniciando sesión..." />
+        <FullScreenLoader visible={isLoading} message="Procesando..." />
         <View style={styles.modal}>
           <Text style={styles.title}>Iniciar sesión</Text>
           <TextInput
@@ -103,7 +122,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogi
             </TouchableOpacity>
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+          <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
             <Text style={styles.loginButtonText}>Ingresar</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowForgot(true)}>
@@ -116,15 +135,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogi
             <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
           </Pressable>
         </View>
-        {/* Modal de recuperación */}
+        
         <Modal visible={showForgot} animationType="fade" transparent>
           <View style={styles.overlay}>
             <View style={styles.forgotModal}>
               <Text style={styles.forgotTitle}>Recuperar contraseña</Text>
+              
               {forgotSent ? (
-                <Text style={styles.forgotSent}>Instrucciones enviadas a tu correo.</Text>
+                <View style={styles.successContainer}>
+                  <MaterialIcons name="check-circle" size={48} color={BOA_COLORS.success} />
+                  <Text style={styles.successText}>¡Instrucciones enviadas!</Text>
+                  <Text style={styles.successSubtext}>
+                    Revisa tu bandeja de entrada y sigue el enlace para restablecer tu contraseña.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.loginButton, { marginTop: 20 }]}
+                    onPress={resetForgotForm}
+                  >
+                    <Text style={styles.loginButtonText}>Entendido</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <>
+                  <Text style={styles.forgotDescription}>
+                    Ingresa tu correo electrónico y te enviaremos un enlace para recuperar tu contraseña.
+                  </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Ingresa tu correo"
@@ -134,16 +169,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogi
                     value={forgotEmail}
                     onChangeText={setForgotEmail}
                   />
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
                   <TouchableOpacity
                     style={styles.loginButton}
-                    onPress={handleForgot}
-                    disabled={!forgotEmail || !forgotEmail.includes('@')}
+                    onPress={handleForgotPassword}
+                    disabled={isLoading || !forgotEmail || !forgotEmail.includes('@')}
                   >
-                    <Text style={styles.loginButtonText}>Enviar</Text>
+                    <Text style={styles.loginButtonText}>
+                      {isLoading ? 'Enviando...' : 'Enviar Instrucciones'}
+                    </Text>
                   </TouchableOpacity>
                 </>
               )}
-              <Pressable style={styles.close} onPress={() => setShowForgot(false)}>
+              
+              <Pressable style={styles.close} onPress={resetForgotForm} disabled={isLoading}>
                 <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
               </Pressable>
             </View>
@@ -231,7 +270,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   forgotModal: {
-    width: '80%',
+    width: '85%',
     backgroundColor: BOA_COLORS.white,
     borderRadius: 18,
     padding: 24,
@@ -246,10 +285,29 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     textAlign: 'center',
   },
-  forgotSent: {
-    color: BOA_COLORS.success,
-    fontSize: 16,
+  forgotDescription: {
+    color: BOA_COLORS.dark,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
+    lineHeight: 20,
+  },
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  successText: {
+    color: BOA_COLORS.success,
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+  successSubtext: {
+    color: BOA_COLORS.dark,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 }); 

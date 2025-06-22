@@ -40,6 +40,9 @@ export default {
       eas: {
         projectId: "9a2037ed-4638-48ac-a2a3-0747db1b6de1"
       }
-    }
+    },
+    plugins: [
+      "expo-barcode-scanner"
+    ]
   }
 }; 

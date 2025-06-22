@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ImageBackground,
   Alert,
+  Image,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +34,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showShippingModal, setShowShippingModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+
+  // Animación para el indicador de scroll
+  const scrollIndicatorAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scrollIndicatorAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scrollIndicatorAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startAnimation();
+  }, [scrollIndicatorAnim]);
 
   // Datos simulados de paquetes del usuario
   const userPackages = [
@@ -100,6 +126,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
         case 'internal-alerts':
           navigation.navigate('InternalAlerts', { currentUser });
           break;
+        case 'claims':
+          navigation.navigate('AdminClaims', { currentUser, handleLogout });
+          break;
+        case 'returns':
+          navigation.navigate('AdminReturns');
+          break;
+        case 'preregistrations':
+          navigation.navigate('AllPreRegistrations');
+          break;
         case 'reports':
           Alert.alert('Reportes', 'Funcionalidad de reportes y estadísticas');
           break;
@@ -112,54 +147,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
         case 'my-packages':
           navigation.navigate('UserPackages', { currentUser });
           break;
+        case 'my-claims':
+          navigation.navigate('UserClaims', { currentUser });
+          break;
+        case 'my-returns':
+          navigation.navigate('UserReturns', { currentUser });
+          break;
+        case 'preregistrations':
+          navigation.navigate('PreRegistration', { currentUser });
+          break;
         case 'alerts':
-          // Para usuarios públicos: Configuración de alertas automáticas
-          Alert.alert(
-            'Configurar Alertas Automáticas',
-            'Activa notificaciones automáticas para tus paquetes:',
-            [
-              {
-                text: 'SMS',
-                onPress: () => {
-                  Alert.alert(
-                    'Alertas por SMS',
-                    '¿Activar alertas por SMS cuando:\n• El paquete cambia de estado\n• El paquete llega a destino\n• El paquete es entregado?',
-                    [
-                      { text: 'Activar', onPress: () => Alert.alert('Éxito', 'Alertas por SMS activadas') },
-                      { text: 'Cancelar' }
-                    ]
-                  );
-                }
-              },
-              {
-                text: 'Correo',
-                onPress: () => {
-                  Alert.alert(
-                    'Alertas por Correo',
-                    '¿Activar alertas por correo cuando:\n• El paquete cambia de estado\n• El paquete llega a destino\n• El paquete es entregado?',
-                    [
-                      { text: 'Activar', onPress: () => Alert.alert('Éxito', 'Alertas por correo activadas') },
-                      { text: 'Cancelar' }
-                    ]
-                  );
-                }
-              },
-              {
-                text: 'Push',
-                onPress: () => {
-                  Alert.alert(
-                    'Alertas Push',
-                    '¿Activar notificaciones push cuando:\n• El paquete cambia de estado\n• El paquete llega a destino\n• El paquete es entregado?',
-                    [
-                      { text: 'Activar', onPress: () => Alert.alert('Éxito', 'Alertas push activadas') },
-                      { text: 'Cancelar' }
-                    ]
-                  );
-                }
-              },
-              { text: 'Cancelar' }
-            ]
-          );
+          navigation.navigate('Alerts', { currentUser });
           break;
         case 'support':
           Alert.alert('Soporte', 'Funcionalidad de soporte al cliente');
@@ -202,13 +200,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
                         onPress: () => {
                           Alert.alert(
                             'Reporte de Paquete Dañado',
-                            'Para reportar un paquete dañado, necesitamos:\n\n• Número de tracking\n• Fotos del daño\n• Descripción detallada\n\n¿Deseas continuar?',
+                            'Para reportar un paquete dañado, necesitamos:\n\n• Número de tracking\n• Descripción del daño\n• Fotos del daño (si es posible)\n\n¿Deseas continuar?',
                             [
                               {
                                 text: 'Continuar',
                                 onPress: () => Alert.alert(
                                   'Reporte Enviado',
-                                  'Tu reporte ha sido registrado. Nuestro equipo de reclamaciones se pondrá en contacto contigo.',
+                                  'Tu reporte ha sido registrado. Nuestro equipo se pondrá en contacto contigo en las próximas 24 horas.',
                                   [{ text: 'OK' }]
                                 )
                               },
@@ -228,27 +226,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
                                 text: 'Continuar',
                                 onPress: () => Alert.alert(
                                   'Reporte Enviado',
-                                  'Tu reporte ha sido registrado. Iniciaremos una investigación inmediata.',
-                                  [{ text: 'OK' }]
-                                )
-                              },
-                              { text: 'Cancelar' }
-                            ]
-                          );
-                        }
-                      },
-                      {
-                        text: 'Otro Problema',
-                        onPress: () => {
-                          Alert.alert(
-                            'Otro Problema',
-                            'Por favor describe tu problema:',
-                            [
-                              {
-                                text: 'Enviar',
-                                onPress: () => Alert.alert(
-                                  'Reporte Enviado',
-                                  'Tu reporte ha sido registrado. Te contactaremos pronto.',
+                                  'Tu reporte ha sido registrado. Nuestro equipo se pondrá en contacto contigo en las próximas 24 horas.',
                                   [{ text: 'OK' }]
                                 )
                               },
@@ -263,17 +241,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
                 }
               },
               {
-                text: 'Consultar Estado',
+                text: 'Solicitar Devolución',
                 onPress: () => {
                   Alert.alert(
-                    'Consultar Estado de Reporte',
-                    'Para consultar el estado de tu reporte, necesitamos:\n\n• Número de reporte\n• Número de tracking\n\n¿Tienes esta información?',
+                    'Solicitar Devolución',
+                    'Para solicitar una devolución, necesitamos:\n\n• Número de tracking\n• Motivo de la devolución\n• Información de contacto\n\n¿Deseas continuar?',
                     [
                       {
-                        text: 'Sí, Consultar',
+                        text: 'Continuar',
                         onPress: () => Alert.alert(
-                          'Estado del Reporte',
-                          'Tu reporte está siendo procesado. Estado: En revisión\n\nTiempo estimado de respuesta: 24-48 horas.',
+                          'Solicitud Enviada',
+                          'Tu solicitud de devolución ha sido registrada. Nuestro equipo se pondrá en contacto contigo en las próximas 24 horas.',
                           [{ text: 'OK' }]
                         )
                       },
@@ -283,12 +261,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
                 }
               },
               {
-                text: 'Contacto Directo',
+                text: 'Información General',
                 onPress: () => {
                   Alert.alert(
-                    'Contacto Directo',
-                    'Opciones de contacto:\n\n📞 Teléfono: +591 2 1234567\n📧 Email: soporte@boa.com\n💬 WhatsApp: +591 70012345\n\nHorario: Lunes a Viernes 8:00-18:00',
-                    [{ text: 'OK' }]
+                    'Información General',
+                    '¿En qué podemos ayudarte?\n\n• Horarios de atención\n• Ubicaciones de oficinas\n• Tarifas y costos\n• Tiempos de entrega\n• Requisitos de envío',
+                    [
+                      {
+                        text: 'Llamar',
+                        onPress: () => Alert.alert('Llamada', 'Redirigiendo a llamada...')
+                      },
+                      {
+                        text: 'WhatsApp',
+                        onPress: () => Alert.alert('WhatsApp', 'Redirigiendo a WhatsApp...')
+                      },
+                      { text: 'Cancelar' }
+                    ]
                   );
                 }
               },
@@ -383,21 +371,92 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => 
           />
           
           <ScrollView contentContainerStyle={styles.publicContent} showsVerticalScrollIndicator={false}>
-            <View style={[styles.heroSection, { marginTop: 32 }]}> 
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.80)', borderRadius: 18, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 }}>
-                <MaterialIcons name="flight" size={54} color={BOA_COLORS.primary} style={{ marginBottom: 8, textShadowColor: 'rgba(25,118,210,0.18)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }} />
-                <Text style={{ fontSize: 36, fontWeight: 'bold', color: BOA_COLORS.primary, marginBottom: 8, textAlign: 'center', letterSpacing: 2, textShadowColor: 'rgba(25,118,210,0.18)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>
-                  Boa Tracking
+            {/* Hero Section con Logo Central */}
+            <View style={styles.heroSection}>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.90)', borderRadius: 20, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6 }}>
+                {/* Logo Central */}
+                <Image 
+                  source={require('../assets/logo_central.png')} 
+                  style={{ 
+                    width: 150, 
+                    height: 150, 
+                    marginBottom: 24,
+                    resizeMode: 'contain',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4
+                  }} 
+                />
+                <Text style={{ 
+                  fontSize: 38, 
+                  fontWeight: '900', 
+                  color: BOA_COLORS.primary, 
+                  marginBottom: 8, 
+                  textAlign: 'center', 
+                  letterSpacing: 3,
+                  textShadowColor: 'rgba(25,118,210,0.2)',
+                  textShadowOffset: { width: 0, height: 3 },
+                  textShadowRadius: 6,
+                  fontFamily: 'System',
+                  includeFontPadding: false,
+                  textAlignVertical: 'center'
+                }}>
+                  TrackingApp
                 </Text>
                 <Text style={{ fontSize: 18, color: BOA_COLORS.dark, marginBottom: 16, textAlign: 'center', fontWeight: '500' }}>Seguimiento confiable de tus envíos internacionales</Text>
-                <Text style={{ fontSize: 16, color: BOA_COLORS.gray, textAlign: 'center', lineHeight: 22, marginBottom: 8 }}>
+                <Text style={{ fontSize: 16, color: BOA_COLORS.gray, textAlign: 'center', lineHeight: 22 }}>
                   Rastrea tus paquetes en tiempo real desde cualquier parte del mundo. Recibe notificaciones instantáneas y mantén el control total de tus envíos.
                 </Text>
               </View>
             </View>
+            
+            {/* Indicador de Scroll Animado */}
+            <View style={{ alignItems: 'center', marginTop: 20, marginBottom: 30 }}>
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      translateY: scrollIndicatorAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 10],
+                      }),
+                    },
+                  ],
+                  opacity: scrollIndicatorAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0.6, 1, 0.6],
+                  }),
+                }}
+              >
+                <View style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.9)', 
+                  borderRadius: 20, 
+                  padding: 12,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }}>
+                  <MaterialIcons name="keyboard-arrow-down" size={24} color={BOA_COLORS.primary} />
+                </View>
+              </Animated.View>
+              <Text style={{ 
+                color: BOA_COLORS.white, 
+                fontSize: 12, 
+                marginTop: 8, 
+                textAlign: 'center',
+                opacity: 0.8,
+                fontWeight: '500'
+              }}>
+                Desliza para ver más
+              </Text>
+            </View>
+            
             {/* Carrusel de motivos/funciones debajo de la presentación */}
             <View style={{ marginTop: 24, marginBottom: 8 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 16, textAlign: 'center', letterSpacing: 0.5 }}>¿Para qué sirve Boa Tracking?</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 16, textAlign: 'center', letterSpacing: 0.5 }}>¿Para qué sirve TrackingApp?</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}>
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 18, padding: 20, alignItems: 'center', width: 220, marginRight: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 8, elevation: 4 }}>
                   <MaterialIcons name="track-changes" size={38} color={BOA_COLORS.primary} />

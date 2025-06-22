@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -19,14 +19,26 @@ interface ClaimModalProps {
   visible: boolean;
   onClose: () => void;
   trackingNumber?: string;
+  currentUser?: any;
 }
 
-export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, trackingNumber: initialTrackingNumber }) => {
+export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, trackingNumber: initialTrackingNumber, currentUser }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber || '');
   const [claimType, setClaimType] = useState('paquete_demorado');
   const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (currentUser) {
+      setName(currentUser.name || '');
+      setEmail(currentUser.email || '');
+    } else {
+      setName('');
+      setEmail('');
+    }
+    setTrackingNumber(initialTrackingNumber || '');
+  }, [visible, currentUser, initialTrackingNumber]);
 
   const handleSubmit = async () => {
     if (!name || !email || !description) {
@@ -53,9 +65,11 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, tracki
         throw new Error('No se pudo enviar el reclamo. Inténtalo de nuevo.');
       }
 
+      const result = await response.json();
+
       Alert.alert(
-        'Reclamo Enviado',
-        'Hemos recibido tu solicitud. Nos pondremos en contacto contigo pronto.',
+        'Reclamo Enviado Exitosamente',
+        `Tu reclamo ha sido registrado con el número de seguimiento: ${result.claimId}. Recibirás una respuesta en un plazo máximo de 24 horas.`,
         [{ text: 'OK', onPress: onClose }]
       );
     } catch (error: any) {
@@ -89,12 +103,12 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, tracki
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Tu Nombre</Text>
-              <TextInput style={styles.input} placeholder="Nombre completo" value={name} onChangeText={setName} />
+              <TextInput style={[styles.input, currentUser && styles.disabledInput]} placeholder="Nombre completo" value={name} onChangeText={setName} editable={!currentUser} />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Tu Correo Electrónico</Text>
-              <TextInput style={styles.input} placeholder="tu.correo@ejemplo.com" value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <TextInput style={[styles.input, currentUser && styles.disabledInput]} placeholder="tu.correo@ejemplo.com" value={email} onChangeText={setEmail} keyboardType="email-address" editable={!currentUser}/>
             </View>
 
             <View style={styles.inputGroup}>
@@ -192,6 +206,10 @@ const styles = StyleSheet.create({
         color: BOA_COLORS.dark,
         borderWidth: 1,
         borderColor: '#ddd',
+      },
+      disabledInput: {
+        backgroundColor: '#f0f0f0',
+        color: '#a0a0a0',
       },
       multilineInput: {
         height: 100,

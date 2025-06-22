@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { ClaimModal } from '../components/ClaimModal';
 import * as Print from 'expo-print';
 import { shareAsync } from 'expo-sharing';
 import { FullScreenLoader } from '../components/FullScreenLoader';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 
 interface TrackingDetailScreenProps {
   navigation: any;
@@ -30,21 +32,31 @@ interface TrackingDetailScreenProps {
 
 export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navigation, route }) => {
   const { trackingItem, currentUser } = route.params;
-  const [events, setEvents] = useState<TrackingEvent[]>(trackingItem.events || []);
+  const isPreRegistration = !trackingItem.status;
+
+  const [updatedTrackingItem, setUpdatedTrackingItem] = useState(trackingItem);
+  const [events, setEvents] = useState<TrackingEvent[]>([]);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-
-  const isPreRegistration = trackingItem.status === 'Pre-registrado';
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState<string>('');
 
   const generatePdf = async () => {
     setIsGeneratingPdf(true);
     const {
-      trackingNumber, description, cargo_type, weight, priority,
+      trackingNumber, tracking_number, description, cargo_type, weight, priority,
       shipping_type, cost, origin_city, destination_city, sender_name,
-      recipient_name, sender_email, recipient_email
-    } = trackingItem;
+      recipient_name, sender_email, recipient_email, status
+    } = updatedTrackingItem;
+    
+    // Usar el tracking number correcto
+    const finalTrackingNumber = trackingNumber || tracking_number;
+    
+    // Determinar el tipo de documento basado en el estado
+    const isApproved = status === 'Aprobado';
+    const documentTitle = isApproved ? 'Orden de Tracking' : 'Confirmación de Pre-Registro';
+    const documentSubtitle = isApproved ? 'Paquete Aprobado' : 'Pre-Registro Pendiente';
     
     const html = `
       <html>
@@ -55,19 +67,41 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
             .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
             .header h1 { color: #1976D2; margin: 0; }
             .header p { margin: 5px 0; font-size: 14px; color: #777; }
+            .status-badge { 
+              display: inline-block; 
+              padding: 5px 15px; 
+              border-radius: 20px; 
+              font-size: 12px; 
+              font-weight: bold; 
+              margin-top: 5px;
+              background-color: ${isApproved ? '#4CAF50' : '#FF9800'};
+              color: white;
+            }
             .section { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; padding: 15px; }
             .section h2 { color: #1976D2; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 0; }
             .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
             .info-item { background-color: #f9f9f9; padding: 10px; border-radius: 5px; }
             .info-item strong { display: block; color: #555; margin-bottom: 5px; }
             .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #aaa; }
+            .tracking-number { 
+              font-size: 18px; 
+              font-weight: bold; 
+              color: #1976D2; 
+              background-color: #e3f2fd; 
+              padding: 10px; 
+              border-radius: 5px; 
+              text-align: center;
+              margin: 10px 0;
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Confirmación de Pre-Registro</h1>
-              <p>Tracking Number: ${trackingNumber}</p>
+              <h1>${documentTitle}</h1>
+              <p>${documentSubtitle}</p>
+              <div class="tracking-number">${finalTrackingNumber}</div>
+              <div class="status-badge">${isApproved ? 'APROBADO' : 'PENDIENTE'}</div>
             </div>
             
             <div class="section">
@@ -95,13 +129,13 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
               <div class="info-grid">
                 <div class="info-item"><strong>Remitente:</strong> ${sender_name}</div>
                 <div class="info-item"><strong>Destinatario:</strong> ${recipient_name}</div>
-                <div class="info-item"><strong>Email Remitente:</strong> ${sender_email}</div>
-                <div class="info-item"><strong>Email Destinatario:</strong> ${recipient_email}</div>
+                <div class="info-item"><strong>Email Remitente:</strong> ${sender_email || 'No especificado'}</div>
+                <div class="info-item"><strong>Email Destinatario:</strong> ${recipient_email || 'No especificado'}</div>
               </div>
             </div>
 
             <div class="footer">
-              <p>Gracias por confiar en Boa Tracking.</p>
+              <p>${isApproved ? 'Gracias por confiar en Boa Tracking. Su paquete ha sido aprobado y está en proceso.' : 'Gracias por confiar en Boa Tracking. Su pre-registro está siendo revisado.'}</p>
               <p>Fecha de generación: ${new Date().toLocaleString()}</p>
             </div>
           </div>
@@ -115,49 +149,104 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
     } catch (error) {
       Alert.alert("Error", "No se pudo generar el PDF.");
       console.error(error);
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
-  const progress = calculateProgress(events);
-  const lastEvent = events[events.length - 1];
-  const currentStatus = lastEvent ? lastEvent.eventType : 'pending';
-
-  useEffect(() => {
-    if (isPreRegistration) return; 
-
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingItem.trackingNumber}`);
-        const data = await res.json();
-        if (data && Array.isArray(data.events)) {
-          setEvents(data.events);
-        }
-      } catch (e) {
-        // Puedes mostrar un error si quieres
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setCurrentLocation('Ubicación no disponible');
+        return;
       }
-    };
-    fetchEvents();
+      
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      // Obtener dirección a partir de coordenadas
+      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (address.length > 0) {
+        const addr = address[0];
+        const locationString = `${addr.city || ''} ${addr.region || ''} ${addr.country || ''}`.trim();
+        setCurrentLocation(locationString || 'Ubicación actual');
+      } else {
+        setCurrentLocation('Ubicación actual');
+      }
+    } catch (error) {
+      setCurrentLocation('Ubicación no disponible');
+    }
+  };
+
+  const fetchPackageData = useCallback(async () => {
+    if (isPreRegistration) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingItem.trackingNumber}`);
+      const data = await res.json();
+      
+      if (data) {
+        console.log('API Response - updatedTrackingItem:', data);
+        setUpdatedTrackingItem(data);
+        if (data.events && Array.isArray(data.events)) {
+          const formattedEvents = data.events.map((event: TrackingEvent) => ({
+            ...event,
+            timestamp: new Date(event.timestamp),
+          }));
+          setEvents(formattedEvents);
+        } else {
+          setEvents([]);
+        }
+      }
+    } catch (e) {
+      Alert.alert("Error", "No se pudo cargar la información del paquete.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [trackingItem.trackingNumber, isPreRegistration]);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchPackageData();
+      getCurrentLocation();
+    }, [fetchPackageData])
+  );
+  
+  const progress = calculateProgress(events);
+  const currentStatus = updatedTrackingItem.status ? updatedTrackingItem.status.toLowerCase() : 'pending';
+  
   // Mapear tipos de eventos a descripciones disponibles
   const getStatusDescription = (eventType: string) => {
     switch (eventType) {
-      case 'arrival':
+      case 'received':
+        return 'Recibido en Centro de Distribución';
+      case 'classified':
+        return 'Clasificado y Preparado';
+      case 'dispatched':
+        return 'Despachado hacia Destino';
+      case 'in_flight':
+        return 'En Vuelo';
       case 'arrived':
-        return TRACKING_STATUS_DESCRIPTIONS.arrived;
+        return 'Llegado a Destino';
       case 'departure':
-      case 'in_transit':
-        return TRACKING_STATUS_DESCRIPTIONS.in_transit;
+        return 'En Tránsito';
       case 'processing':
-        return TRACKING_STATUS_DESCRIPTIONS.processing;
+        return 'En Procesamiento';
       case 'customs_clearance':
       case 'customs_hold':
-        return TRACKING_STATUS_DESCRIPTIONS.customs_hold;
+        return 'En Aduana';
+      case 'out_for_delivery':
+        return 'En Ruta de Entrega';
       case 'delivered':
-        return TRACKING_STATUS_DESCRIPTIONS.delivered;
+        return 'Entregado';
       case 'pending':
       default:
-        return TRACKING_STATUS_DESCRIPTIONS.pending;
+        return 'Pendiente de Procesamiento';
     }
   };
 
@@ -178,19 +267,7 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
 
   const handleAddEvent = (event: TrackingEvent) => {
     setEvents([...events, event]);
-    Alert.alert('Evento registrado', 'El evento fue registrado correctamente.');
-  };
-
-  const handleViewHistory = () => {
-    if (navigation) {
-      navigation.navigate('PackageHistory', {
-        trackingNumber: trackingItem.trackingNumber,
-        events: events,
-        currentUser: currentUser,
-      });
-    } else {
-      Alert.alert('Error', 'No se puede navegar en este momento');
-    }
+    fetchPackageData(); // Refrescar datos después de agregar evento
   };
 
   return (
@@ -207,19 +284,12 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
               <View style={styles.trackingInfo}>
                 <MaterialIcons name="local-shipping" size={32} color={BOA_COLORS.primary} />
                 <View style={styles.trackingDetails}>
-                  <Text style={styles.trackingNumber}>{trackingItem.trackingNumber}</Text>
+                  <Text style={styles.trackingNumber}>{updatedTrackingItem.trackingNumber}</Text>
                   <Text style={[styles.status, { color: getStatusColor(currentStatus) }]}>
                     {isPreRegistration ? 'Pre-registrado' : getStatusDescription(currentStatus)}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                style={styles.historyButton}
-                onPress={isPreRegistration ? generatePdf : handleViewHistory}
-              >
-                <MaterialIcons name={isPreRegistration ? "picture-as-pdf" : "history"} size={20} color={BOA_COLORS.primary} />
-                <Text style={styles.historyButtonText}>{isPreRegistration ? 'Generar PDF' : 'Historial'}</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -230,20 +300,20 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
                 <Text style={styles.cardTitle}>Detalles del Pre-Registro</Text>
               </View>
               <View style={styles.currentStatusContent}>
-                <View style={styles.statusInfoRow}><MaterialIcons name="person" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Remitente:</Text><Text style={styles.statusInfoValue}>{trackingItem.sender_name}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="person-outline" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Destinatario:</Text><Text style={styles.statusInfoValue}>{trackingItem.recipient_name}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="description" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Descripción:</Text><Text style={styles.statusInfoValue}>{trackingItem.description}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="place" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Origen:</Text><Text style={styles.statusInfoValue}>{trackingItem.origin_city}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="flag" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Destino:</Text><Text style={styles.statusInfoValue}>{trackingItem.destination_city}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="local-shipping" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Tipo de Carga:</Text><Text style={styles.statusInfoValue}>{trackingItem.cargo_type || 'No especificado'}</Text></View></View>
-                <View style={styles.statusInfoRow}><MaterialIcons name="line-weight" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Peso:</Text><Text style={styles.statusInfoValue}>{trackingItem.weight || 'No especificado'} kg</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="person" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Remitente:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.sender_name}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="person-outline" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Destinatario:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.recipient_name}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="description" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Descripción:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.description}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="place" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Origen:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.origin_city}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="flag" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Destino:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.destination_city}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="local-shipping" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Tipo de Carga:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.cargo_type || 'No especificado'}</Text></View></View>
+                <View style={styles.statusInfoRow}><MaterialIcons name="line-weight" size={20} color={BOA_COLORS.primary} /><View style={styles.statusInfoContent}><Text style={styles.statusInfoLabel}>Peso:</Text><Text style={styles.statusInfoValue}>{updatedTrackingItem.weight || 'No especificado'} kg</Text></View></View>
                 <View style={styles.statusInfoRow}>
                   <MaterialIcons name="event" size={20} color={BOA_COLORS.primary} />
                   <View style={styles.statusInfoContent}>
                     <Text style={styles.statusInfoLabel}>Fecha Estimada de Entrega:</Text>
                     <Text style={styles.statusInfoValue}>
                       {(() => {
-                        const fecha = trackingItem.estimatedDelivery || trackingItem.estimated_delivery_date;
+                        const fecha = updatedTrackingItem.estimatedDelivery || updatedTrackingItem.estimated_delivery_date;
                         if (fecha && !isNaN(Date.parse(fecha))) {
                           return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
                         } else if (fecha) {
@@ -288,13 +358,13 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
                 </View>
               </View>
               
-              {lastEvent && (
+              {events.length > 0 && (
                 <>
                   <View style={styles.statusInfoRow}>
                     <MaterialIcons name="location-on" size={20} color={BOA_COLORS.primary} />
                     <View style={styles.statusInfoContent}>
                       <Text style={styles.statusInfoLabel}>Ubicación actual:</Text>
-                          <Text style={styles.statusInfoValue}>{lastEvent.pointName || (lastEvent as any).location}</Text>
+                          <Text style={styles.statusInfoValue}>{currentLocation}</Text>
                     </View>
                   </View>
                   
@@ -303,7 +373,7 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
                     <View style={styles.statusInfoContent}>
                       <Text style={styles.statusInfoLabel}>Última actualización:</Text>
                       <Text style={styles.statusInfoValue}>
-                        {new Date(lastEvent.timestamp).toLocaleString()}
+                        {new Date(events[0].timestamp).toLocaleString()}
                       </Text>
                     </View>
                   </View>
@@ -312,7 +382,7 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
                     <MaterialIcons name="description" size={20} color={BOA_COLORS.primary} />
                     <View style={styles.statusInfoContent}>
                       <Text style={styles.statusInfoLabel}>Descripción del evento:</Text>
-                      <Text style={styles.statusInfoValue}>{lastEvent.description || 'Ninguna'}</Text>
+                      <Text style={styles.statusInfoValue}>{events[0].notes || 'Ninguna'}</Text>
                     </View>
                   </View>
                   
@@ -355,8 +425,8 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
                       {idx < events.length -1 && <View style={styles.timelineConnector} />}
                     </View>
                     <View style={styles.timelineContent}>
-                      <Text style={styles.timelineTitle}>{getStatusDescription(event.eventType)}</Text>
-                      <Text style={styles.timelineSubtitle}>{event.description}</Text>
+                      <Text style={styles.timelineTitle}>{getStatusDescription(event.event_type)}</Text>
+                      <Text style={styles.timelineSubtitle}>{event.notes || 'Ninguna'}</Text>
                       <Text style={styles.timelineDate}>{new Date(event.timestamp).toLocaleString()}</Text>
                     </View>
                   </View>
@@ -382,15 +452,15 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
             </View>
             <View style={styles.packageInfoContent}>
               <Text style={styles.packageInfoText}>
-                <Text style={styles.bold}>Descripción:</Text> {trackingItem.description}
+                <Text style={styles.bold}>Descripción:</Text> {updatedTrackingItem.description}
               </Text>
               <Text style={styles.packageInfoText}>
-                <Text style={styles.bold}>Prioridad:</Text> {trackingItem.priority}
+                <Text style={styles.bold}>Prioridad:</Text> {updatedTrackingItem.priority}
               </Text>
               <Text style={styles.packageInfoText}>
                 <Text style={styles.bold}>Fecha estimada de entrega:</Text> {
                   (() => {
-                    const fecha = trackingItem.estimatedDelivery || trackingItem.estimated_delivery_date;
+                    const fecha = updatedTrackingItem.estimatedDelivery || updatedTrackingItem.estimated_delivery_date;
                     if (fecha && !isNaN(Date.parse(fecha))) {
                       return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
                     } else if (fecha) {
@@ -420,18 +490,33 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
             </TouchableOpacity>
           )}
 
+          {/* Download PDF Button - for approved preregistrations or all packages */}
+          {(updatedTrackingItem.status === 'Aprobado' || !isPreRegistration) && (
+            <TouchableOpacity 
+              style={[styles.downloadButton, { opacity: isGeneratingPdf ? 0.5 : 1 }]} 
+              onPress={generatePdf}
+              disabled={isGeneratingPdf}
+            >
+              <MaterialIcons name="file-download" size={20} color={BOA_COLORS.white} />
+              <Text style={styles.downloadButtonText}>
+                {isGeneratingPdf ? 'Generando PDF...' : 'Descargar Orden de Tracking'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
         </ScrollView>
         <TrackingEventModal
           visible={showEventModal}
           onClose={() => setShowEventModal(false)}
           onEventCreated={handleAddEvent}
-          trackingNumber={trackingItem.trackingNumber}
-          operator={currentUser?.name}
+          trackingNumber={updatedTrackingItem.tracking_number || updatedTrackingItem.trackingNumber || 'N/A'}
+          operator={currentUser?.name || ''}
+          currentLocation={currentLocation}
         />
         <ClaimModal
           visible={showClaimModal}
           onClose={() => setShowClaimModal(false)}
-          trackingNumber={trackingItem.trackingNumber}
+          trackingNumber={updatedTrackingItem.trackingNumber}
         />
       </ImageBackground>
     </SafeAreaView>
@@ -459,40 +544,28 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   trackingInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'center',
   },
   trackingDetails: {
     marginLeft: 12,
-    flex: 1,
+    alignItems: 'center',
   },
   trackingNumber: {
     fontSize: 18,
     fontWeight: 'bold',
     color: BOA_COLORS.dark,
-    flexShrink: 1,
+    textAlign: 'center',
   },
   status: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  historyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: BOA_COLORS.light,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  historyButtonText: {
-    marginLeft: 6,
-    color: BOA_COLORS.primary,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
   progressCard: {
     backgroundColor: 'rgba(255,255,255,0.9)',
@@ -675,6 +748,21 @@ const styles = StyleSheet.create({
   },
   reportIssueButtonText: {
     color: BOA_COLORS.danger,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BOA_COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  downloadButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,

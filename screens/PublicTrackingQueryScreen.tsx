@@ -190,15 +190,6 @@ export const PublicTrackingQueryScreen: React.FC<PublicTrackingQueryScreenProps>
           style={styles.container} 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <MaterialIcons name="arrow-back" size={24} color={BOA_COLORS.white} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Consulta de Tracking</Text>
-            <View style={{ width: 40 }} />
-          </View>
-
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {/* Sección de bienvenida */}
             <View style={styles.welcomeCard}>

@@ -86,4 +86,61 @@ export async function registerUser({ name, email, password, role = 'public' }: {
   } catch (e) {
     return null;
   }
+}
+
+// Función para solicitar recuperación de contraseña
+export async function requestPasswordReset(email: string) {
+  try {
+    const res = await fetch(`${API_URL}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || 'Error al solicitar recuperación' };
+    }
+  } catch (e) {
+    return { success: false, error: 'Error de conexión' };
+  }
+}
+
+// Función para resetear contraseña con token
+export async function resetPassword(token: string, newPassword: string) {
+  try {
+    const res = await fetch(`${API_URL}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || 'Error al resetear contraseña' };
+    }
+  } catch (e) {
+    return { success: false, error: 'Error de conexión' };
+  }
+}
+
+// Función para verificar token de recuperación
+export async function verifyResetToken(token: string) {
+  try {
+    const res = await fetch(`${API_URL}/verify-reset-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || 'Token inválido' };
+    }
+  } catch (e) {
+    return { success: false, error: 'Error de conexión' };
+  }
 } 

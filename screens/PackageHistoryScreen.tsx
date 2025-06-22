@@ -83,14 +83,21 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
   };
 
   const handleEditEvent = (event: TrackingEvent) => {
+    console.log('handleEditEvent llamado con:', event);
     setEditingEvent(event);
-    setEditLocation(event.pointName);
+    setEditEventType(event.event_type || 'received');
+    setEditLocation(event.location || event.pointName || '');
     setEditNotes(event.notes || '');
-    setEditOperator(event.operator);
+    setEditOperator(event.operator || '');
+    setEditCoordinates(event.coordinates || null);
   };
 
   const handleSaveEdit = async () => {
-    if (!editingEvent) return;
+    console.log('handleSaveEdit llamado');
+    if (!editingEvent) {
+      console.log('No hay editingEvent');
+      return;
+    }
 
     if (!editLocation.trim()) {
       Alert.alert('Error', 'Debes obtener la ubicación actual antes de guardar.');
@@ -99,21 +106,25 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
 
     const updatedEvent: any = {
       ...editingEvent,
-      eventType: editEventType,
+      event_type: editEventType,
       location: editLocation.trim(),
       notes: editNotes.trim() || undefined,
       operator: currentUser?.name || '',
       coordinates: editCoordinates,
     };
 
+    console.log('Enviando evento editado:', updatedEvent);
+
     try {
-      const res = await fetch(`http://192.168.100.16:3000/api/events/${editingEvent.id}`, {
+      const res = await fetch(`http://192.168.100.16:3000/api/packages/events/${editingEvent.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedEvent),
       });
+      const responseText = await res.text();
+      console.log('Respuesta del servidor:', res.status, responseText);
       if (res.ok) {
-    Alert.alert('Evento actualizado', 'El evento fue actualizado correctamente.');
+        Alert.alert('Evento actualizado', 'El evento fue actualizado correctamente.');
         // Refrescar eventos
         const refreshed = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingNumber}`);
         const data = await refreshed.json();
@@ -127,9 +138,11 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
           setEvents([]);
         }
       } else {
-        Alert.alert('Error', 'No se pudo actualizar el evento.');
+        console.error('Error al actualizar evento:', responseText);
+        Alert.alert('Error', `No se pudo actualizar el evento.\n${responseText}`);
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Error de red al actualizar evento:', e);
       Alert.alert('Error', 'No se pudo conectar con el servidor.');
     }
     setEditingEvent(null);
@@ -146,6 +159,7 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
   };
 
   const handleDeleteEvent = (eventId: string) => {
+    console.log('handleDeleteEvent llamado con eventId:', eventId);
     Alert.alert(
       'Confirmar eliminación',
       '¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.',
@@ -155,10 +169,12 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
           text: 'Eliminar', 
           style: 'destructive', 
           onPress: async () => {
+            console.log('Confirmando eliminación del evento:', eventId);
             try {
-              const res = await fetch(`http://192.168.100.16:3000/api/events/${eventId}`, { method: 'DELETE' });
+              const res = await fetch(`http://192.168.100.16:3000/api/packages/events/${eventId}`, { method: 'DELETE' });
+              console.log('Respuesta de eliminación:', res.status);
               if (res.ok) {
-            Alert.alert('Evento eliminado', 'El evento fue eliminado correctamente.');
+                Alert.alert('Evento eliminado', 'El evento fue eliminado correctamente.');
                 // Refrescar eventos
                 const refreshed = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingNumber}`);
                 const data = await refreshed.json();
@@ -172,9 +188,12 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
                   setEvents([]);
                 }
               } else {
-                Alert.alert('Error', 'No se pudo eliminar el evento.');
+                const errorText = await res.text();
+                console.error('Error al eliminar evento:', errorText);
+                Alert.alert('Error', `No se pudo eliminar el evento.\n${errorText}`);
               }
-            } catch (e) {
+            } catch (e: any) {
+              console.error('Error de red al eliminar evento:', e);
               Alert.alert('Error', 'No se pudo conectar con el servidor.');
             }
           }
@@ -184,6 +203,27 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
   };
 
   const sortedEvents = [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Función para determinar si un evento se puede editar/eliminar
+  const canEditEvent = (event: TrackingEvent) => {
+    if (!isAdmin(currentUser)) return false;
+    
+    // Solo el evento más reciente se puede editar
+    return sortedEvents.length > 0 && event.id === sortedEvents[0].id;
+  };
+
+  // Función para obtener el estado visual de los botones
+  const getButtonStyle = (event: TrackingEvent, isEdit: boolean = true) => {
+    const canEdit = canEditEvent(event);
+    if (canEdit) {
+      return {}; // No aplicar estilos adicionales si se puede editar
+    } else {
+      return {
+        opacity: 0.3,
+        backgroundColor: BOA_COLORS.lightGray,
+      };
+    }
+  };
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -234,35 +274,21 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
     }
   };
 
-  // Al abrir modal de edición, inicializar tipo de evento y coordenadas, y dejar ubicación vacía
-  useEffect(() => {
-    if (editingEvent) {
-      setEditEventType(editingEvent.eventType || 'received');
-      setEditCoordinates(editingEvent.coordinates || null);
-      setEditLocation(''); // Siempre vacío al abrir
-    }
-  }, [editingEvent]);
-
   // Si no hay eventos, muestro un mensaje
   if (!Array.isArray(events) || events.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: BOA_COLORS.primary }]}> 
+      <SafeAreaView style={[styles.container, { backgroundColor: BOA_COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}> 
         <ImageBackground
           source={require('../assets/fondo_mobile.png')}
-          style={styles.container}
+          style={styles.backgroundImage}
           resizeMode="cover"
         >
-          <View style={styles.header}>
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="history" size={60} color={BOA_COLORS.lightGray} />
+            <Text style={styles.emptyText}>No hay eventos de historial para este paquete.</Text>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <MaterialIcons name="arrow-back" size={24} color={BOA_COLORS.white} />
+              <Text style={styles.backButtonText}>Volver</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Historial del Paquete</Text>
-            <View style={styles.placeholder} />
-          </View>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: BOA_COLORS.white, fontSize: 18, textAlign: 'center' }}>
-              No hay eventos registrados para este paquete.
-            </Text>
           </View>
         </ImageBackground>
       </SafeAreaView>
@@ -273,89 +299,86 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
     <SafeAreaView style={[styles.container, { backgroundColor: BOA_COLORS.primary }]}>
       <ImageBackground
         source={require('../assets/fondo_mobile.png')}
-        style={styles.container}
+        style={styles.backgroundImage}
         resizeMode="cover"
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color={BOA_COLORS.white} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Historial del Paquete</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Package Info Card */}
-          <View style={styles.packageInfoCard}>
-            <View style={styles.packageHeader}>
-              <MaterialIcons name="local-shipping" size={32} color={BOA_COLORS.primary} />
-              <View style={styles.packageDetails}>
-                <Text style={styles.trackingNumber}>{trackingNumber}</Text>
-                <Text style={styles.eventCount}>
-                  {events.length} evento{events.length !== 1 ? 's' : ''} registrado{events.length !== 1 ? 's' : ''}
-                </Text>
-              </View>
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+          {/* Información para administradores */}
+          {isAdmin(currentUser) && (
+            <View style={styles.adminInfo}>
+              <MaterialIcons name="info" size={28} color={BOA_COLORS.white} style={{ marginRight: 10, alignSelf: 'center' }} />
+              <Text style={[styles.adminInfoText, { color: '#fff', fontWeight: 'bold' }]}>
+                Solo el último evento registrado se puede editar o eliminar para mantener la integridad del historial.
+              </Text>
             </View>
-          </View>
-
-          {/* Timeline */}
-          <View style={styles.timelineContainer}>
-            <Text style={styles.sectionTitle}>Cronología de Eventos</Text>
-            {(sortedEvents as TrackingEventWithLocation[]).map((event, index) => {
-              const isLast = index === 0; // El primer evento en sortedEvents es el más reciente
-              return (
-                <View key={event.id} style={styles.previewCard}>
-                  <View style={styles.previewRow}>
-                    <MaterialIcons name="event" size={18} color={BOA_COLORS.primary} />
-                    <Text style={styles.previewLabel}>Evento:</Text>
-                    <Text style={styles.previewValue}>{eventTypeLabels[event.eventType] || event.eventType}</Text>
+          )}
+          
+          <View style={styles.timeline}>
+            {sortedEvents.map((event: TrackingEventWithLocation, index: number) => (
+              <View key={event.id} style={styles.eventItem}>
+                <View style={styles.eventHeader}>
+                  <MaterialIcons name={eventTypeIcons[event.event_type] as any || 'info'} size={24} color={eventTypeColors[event.event_type] || BOA_COLORS.primary} />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.eventType}>{eventTypeLabels[event.event_type] || event.event_type}</Text>
+                    {index === 0 && (
+                      <Text style={{ fontSize: 12, color: BOA_COLORS.success, fontWeight: 'bold' }}>
+                        ⭐ Último evento - Se puede editar
+                      </Text>
+                    )}
                   </View>
-                  <View style={styles.previewRow}>
-                    <MaterialIcons name="location-on" size={18} color={BOA_COLORS.primary} />
-                    <Text style={styles.previewLabel}>Ubicación:</Text>
-                    <Text style={styles.previewValue}>{event.location ? event.location : event.pointName}</Text>
                 </View>
-                  <View style={styles.previewRow}>
+                <View style={styles.eventDetails}>
+                  <View style={styles.eventRow}>
+                    <MaterialIcons name="location-on" size={18} color={BOA_COLORS.primary} />
+                    <Text style={styles.eventLabel}>Ubicación:</Text>
+                    <Text style={styles.eventValue}>{event.location ? event.location : event.pointName}</Text>
+                </View>
+                  <View style={styles.eventRow}>
                     <MaterialIcons name="person" size={18} color={BOA_COLORS.primary} />
-                    <Text style={styles.previewLabel}>Operador:</Text>
-                    <Text style={styles.previewValue}>{event.operator}</Text>
+                    <Text style={styles.eventLabel}>Operador:</Text>
+                    <Text style={styles.eventValue}>{event.operator}</Text>
                       </View>
-                  <View style={styles.previewRow}>
+                  <View style={styles.eventRow}>
                     <MaterialIcons name="schedule" size={18} color={BOA_COLORS.primary} />
-                    <Text style={styles.previewLabel}>Fecha/Hora:</Text>
-                    <Text style={styles.previewValue}>{event.timestamp ? formatDate(event.timestamp) : 'No disponible'}</Text>
+                    <Text style={styles.eventLabel}>Fecha/Hora:</Text>
+                    <Text style={styles.eventValue}>{event.timestamp ? formatDate(event.timestamp) : 'No disponible'}</Text>
                   </View>
                     {event.notes && (
-                    <View style={styles.previewRow}>
+                    <View style={styles.eventRow}>
                         <MaterialIcons name="note" size={18} color={BOA_COLORS.primary} />
-                      <Text style={styles.previewLabel}>Notas:</Text>
-                      <Text style={styles.previewValue}>{event.notes}</Text>
+                      <Text style={styles.eventLabel}>Notas:</Text>
+                      <Text style={styles.eventValue}>{event.notes}</Text>
                       </View>
                     )}
-                  {isAdmin(currentUser) && (
+                </View>
+                  {canEditEvent(event) && (
                     <View style={styles.adminActions}>
                       <TouchableOpacity 
-                        style={[styles.actionButton, !isLast && { opacity: 0.4 }]}
-                        onPress={() => isLast && handleEditEvent(event)}
-                        disabled={!isLast}
+                        style={[styles.editButton, getButtonStyle(event, true)]} 
+                        onPress={() => handleEditEvent(event)}
                       >
                         <MaterialIcons name="edit" size={16} color={BOA_COLORS.primary} />
-                        <Text style={styles.actionText}>Editar</Text>
+                        <Text style={styles.editButtonText}>Editar</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
-                        style={[styles.actionButton, styles.deleteButton, !isLast && { opacity: 0.4 }]}
-                        onPress={() => isLast && handleDeleteEvent(event.id)}
-                        disabled={!isLast}
+                        style={[styles.deleteButton, getButtonStyle(event, false)]} 
+                        onPress={() => handleDeleteEvent(event.id)}
                       >
-                        <MaterialIcons name="delete" size={16} color={BOA_COLORS.danger} />
-                        <Text style={[styles.actionText, { color: BOA_COLORS.danger }]}>Eliminar</Text>
+                        <MaterialIcons name="delete" size={16} color={BOA_COLORS.white} />
+                        <Text style={[styles.deleteButtonText, { color: BOA_COLORS.white }]}>Eliminar</Text>
                       </TouchableOpacity>
                     </View>
                   )}
+                  
+                  {isAdmin(currentUser) && !canEditEvent(event) && (
+                    <View style={styles.adminActions}>
+                      <Text style={{ fontSize: 12, color: BOA_COLORS.gray, fontStyle: 'italic', textAlign: 'center', flex: 1 }}>
+                        🔒 Solo el último evento se puede editar/eliminar
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              );
-            })}
+            ))}
           </View>
         </ScrollView>
 
@@ -464,69 +487,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: BOA_COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: BOA_COLORS.lightGray,
+    textAlign: 'center',
+    marginTop: 20,
   },
   backButton: {
-    padding: 8,
+    marginTop: 20,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: BOA_COLORS.primary,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  backButtonText: {
     color: BOA_COLORS.white,
-  },
-  placeholder: {
-    width: 40,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   content: {
     padding: 20,
     paddingBottom: 60,
   },
-  packageInfoCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  packageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  packageDetails: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  trackingNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: BOA_COLORS.primary,
-    marginBottom: 5,
-  },
-  eventCount: {
-    fontSize: 14,
-    color: BOA_COLORS.gray,
-  },
-  timelineContainer: {
+  timeline: {
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: BOA_COLORS.primary,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  previewCard: {
+  eventItem: {
     backgroundColor: 'rgba(255,255,255,0.98)',
     borderRadius: 16,
     padding: 18,
@@ -537,19 +532,33 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  previewRow: {
+  eventHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  eventType: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: BOA_COLORS.primary,
+    marginLeft: 8,
+  },
+  eventDetails: {
+    marginLeft: 32,
+  },
+  eventRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  previewLabel: {
+  eventLabel: {
     fontSize: 14,
     color: BOA_COLORS.gray,
     fontWeight: 'bold',
     marginLeft: 6,
     minWidth: 80,
   },
-  previewValue: {
+  eventValue: {
     fontSize: 14,
     color: BOA_COLORS.dark,
     marginLeft: 4,
@@ -563,7 +572,7 @@ const styles = StyleSheet.create({
     borderTopColor: BOA_COLORS.lightGray,
     paddingTop: 15,
   },
-  actionButton: {
+  editButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
@@ -572,12 +581,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: BOA_COLORS.light,
   },
-  deleteButton: {
-    backgroundColor: '#FFEBEE',
-  },
-  actionText: {
+  editButtonText: {
     fontSize: 12,
     color: BOA_COLORS.primary,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginLeft: 10,
+    borderRadius: 8,
+    backgroundColor: BOA_COLORS.danger,
+  },
+  deleteButtonText: {
+    fontSize: 12,
+    color: BOA_COLORS.white,
     marginLeft: 6,
     fontWeight: '600',
   },
@@ -665,5 +686,20 @@ const styles = StyleSheet.create({
     color: BOA_COLORS.white,
     fontSize: 14,
     fontWeight: '600',
+  },
+  adminInfo: {
+    backgroundColor: 'rgba(25,118,210,0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  adminInfoText: {
+    fontSize: 15,
+    marginLeft: 12,
+    flex: 1,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
 }); 

@@ -5,10 +5,14 @@ import { BOA_COLORS } from '../theme';
 import { Header } from '../components/Header';
 import { AlertsSubscriptionModal } from '../components/AlertsSubscriptionModal';
 import { ClaimModal } from '../components/ClaimModal';
+import { HeroCard } from '../components/HeroCard';
+import { TrackingCard } from '../components/TrackingCard';
+import { ReturnRequestModal } from '../components/ReturnRequestModal';
 
 export const HomePublicScreen = ({ currentUser, navigation, handleLogout, handleQuickAction }: any) => {
   const [isAlertModalVisible, setAlertModalVisible] = useState(false);
   const [isClaimModalVisible, setClaimModalVisible] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   const handleAlertsPress = () => {
     // En lugar de llamar a handleQuickAction, abrimos el modal
@@ -63,9 +67,9 @@ export const HomePublicScreen = ({ currentUser, navigation, handleLogout, handle
             </Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity style={{ backgroundColor: 'rgba(25,118,210,0.10)', borderRadius: 12, padding: 18, alignItems: 'center', flex: 1 }} onPress={() => navigation.navigate('PreRegistration', { currentUser })}>
-                <MaterialIcons name="add-box" size={32} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Pre-registro</Text>
-              </TouchableOpacity>
+              <MaterialIcons name="add-box" size={32} color={BOA_COLORS.primary} />
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Pre-registro</Text>
+            </TouchableOpacity>
               <TouchableOpacity style={{ backgroundColor: 'rgba(25,118,210,0.10)', borderRadius: 12, padding: 18, alignItems: 'center', flex: 1 }} onPress={() => handleQuickAction('my-packages')}>
                 <MaterialIcons name="track-changes" size={32} color={BOA_COLORS.primary} />
                 <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Mis Paquetes</Text>
@@ -76,31 +80,54 @@ export const HomePublicScreen = ({ currentUser, navigation, handleLogout, handle
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
             <View style={{ flex: 1 }}>
               <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 20, alignItems: 'center' }} onPress={() => navigation.navigate('PublicTrackingQuery')}>
-                <MaterialIcons name="search" size={32} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Consultar Paquete</Text>
-              </TouchableOpacity>
+              <MaterialIcons name="search" size={32} color={BOA_COLORS.primary} />
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Consultar Paquete</Text>
+            </TouchableOpacity>
               <Text style={{ fontSize: 13, color: BOA_COLORS.white, marginTop: 4, textAlign: 'center' }}>
                 Consulta el estado de cualquier envío usando su número de seguimiento.
               </Text>
             </View>
             <View style={{ flex: 1 }}>
               <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 20, alignItems: 'center' }} onPress={handleAlertsPress}>
-                <MaterialIcons name="notifications" size={32} color={BOA_COLORS.primary} />
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Mis Alertas</Text>
-              </TouchableOpacity>
+              <MaterialIcons name="notifications" size={32} color={BOA_COLORS.primary} />
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Mis Alertas</Text>
+            </TouchableOpacity>
               <Text style={{ fontSize: 13, color: BOA_COLORS.white, marginTop: 4, textAlign: 'center' }}>
                 Configura notificaciones automáticas para recibir avisos sobre el estado de tus envíos.
               </Text>
             </View>
           </View>
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: 18, marginBottom: 18, alignItems: 'center' }}>
-            <TouchableOpacity style={{ backgroundColor: 'rgba(25,118,210,0.10)', borderRadius: 12, padding: 20, alignItems: 'center', width: '100%' }} onPress={handleClaimsPress}>
-              <MaterialIcons name="support-agent" size={32} color={BOA_COLORS.primary} />
-              <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Soporte y Reclamos</Text>
-            </TouchableOpacity>
-            <Text style={{ fontSize: 13, color: BOA_COLORS.gray, marginTop: 4, textAlign: 'center' }}>
-              ¿Tienes un problema o duda? Aquí puedes contactar a nuestro equipo de soporte y registrar reclamos.
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: 18, marginBottom: 18}}>
+            <Text style={{textAlign: 'center', fontSize: 16, fontWeight: 'bold', color: BOA_COLORS.dark, marginBottom: 10}}>Soporte y Reclamos</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity style={{ backgroundColor: 'rgba(25,118,210,0.10)', borderRadius: 12, padding: 18, alignItems: 'center', flex: 1 }} onPress={handleClaimsPress}>
+                <MaterialIcons name="support-agent" size={32} color={BOA_COLORS.primary} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Nuevo Reclamo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ backgroundColor: 'rgba(25,118,210,0.10)', borderRadius: 12, padding: 18, alignItems: 'center', flex: 1 }} onPress={() => navigation.navigate('UserClaims', { currentUser, handleLogout })}>
+                <MaterialIcons name="history" size={32} color={BOA_COLORS.primary} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: BOA_COLORS.dark, marginTop: 8, textAlign: 'center' }}>Mis Reclamos</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontSize: 13, color: BOA_COLORS.gray, marginTop: 8, textAlign: 'center' }}>
+              ¿Tienes un problema o duda? Aquí puedes contactar a nuestro equipo de soporte y ver tus reclamos.
             </Text>
+          </View>
+          <View style={{ padding: 20, gap: 20 }}>
+            <HeroCard
+              title="¿Necesitas devolver un paquete?"
+              description="Inicia una solicitud de devolución de forma rápida y sencilla."
+              buttonText="Solicitar Devolución"
+              iconName="undo"
+              onPress={() => setShowReturnModal(true)}
+            />
+            <HeroCard
+              title="Ver Mis Devoluciones"
+              description="Consulta el estado de tus devoluciones y descarga tus órdenes."
+              buttonText="Ver Mis Devoluciones"
+              iconName="playlist-add-check"
+              onPress={() => navigation.navigate('UserReturns', { currentUser })}
+            />
           </View>
         </ScrollView>
         <AlertsSubscriptionModal
@@ -110,6 +137,12 @@ export const HomePublicScreen = ({ currentUser, navigation, handleLogout, handle
         <ClaimModal
           visible={isClaimModalVisible}
           onClose={() => setClaimModalVisible(false)}
+          currentUser={currentUser}
+        />
+        <ReturnRequestModal
+          visible={showReturnModal}
+          onClose={() => setShowReturnModal(false)}
+          currentUser={currentUser}
         />
       </ImageBackground>
     </SafeAreaView>

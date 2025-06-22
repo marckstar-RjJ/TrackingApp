@@ -403,13 +403,7 @@ export const PreRegistrationScreen = ({ route, navigation }: any) => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <ImageBackground source={require('../assets/fondo_mobile.png')} style={styles.container} resizeMode="cover">
-                <View style={styles.headerBar}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <MaterialIcons name="arrow-back" size={24} color={BOA_COLORS.white} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Pre-registro de Envío</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                
                 <ScrollView contentContainerStyle={styles.content}>
                     {renderStepIndicator()}
                     {showPreview ? renderPreview() : renderCurrentStep()}

@@ -14,15 +14,16 @@ export interface TrackingPoint {
 
 export interface TrackingEvent {
   id: string;
-  eventType: 'received' | 'classified' | 'dispatched' | 'in_flight' | 'delivered' | 'customs_clearance' | 'out_for_delivery' | 'arrival' | 'departure' | 'processing' | 'pending';
-  pointName: string;
-  description: string;
+  event_type: 'received' | 'classified' | 'dispatched' | 'in_flight' | 'delivered' | 'customs_clearance' | 'out_for_delivery' | 'pending' | 'arrived' | 'departure' | 'processing';
+  location: string;
   timestamp: Date;
   operator: string;
+  notes?: string;
+  pointName?: string;
+  description?: string;
   flightNumber?: string;
   airline?: string;
   nextDestination?: string;
-  notes?: string;
   coordinates?: {
     latitude: number;
     longitude: number;
@@ -148,26 +149,27 @@ export const TRACKING_STATUS_DESCRIPTIONS = {
 export const calculateProgress = (events: TrackingEvent[]): number => {
   if (events.length === 0) return 0;
   
-  const lastEvent = events[events.length - 1];
+  const lastEvent = events[0];
   
-  switch (lastEvent.eventType) {
+  switch (lastEvent.event_type) {
     case 'delivered':
       return 100;
     case 'out_for_delivery':
       return 90;
-    case 'arrival':
     case 'customs_clearance':
-      return 80;
+      return 85;
     case 'in_flight':
-    case 'departure':
-      return 60;
+      return 75;
     case 'dispatched':
+      return 60;
     case 'classified':
       return 40;
     case 'received':
-    case 'processing':
       return 20;
     case 'pending':
+    case 'processing':
+    case 'arrived':
+    case 'departure':
     default:
       return 10;
   }
@@ -178,7 +180,7 @@ export const getCurrentStatus = (events: TrackingEvent[]): string => {
   if (events.length === 0) return 'pending';
   
   const lastEvent = events[events.length - 1];
-  return lastEvent.eventType;
+  return lastEvent.event_type;
 };
 
 // Función para generar eventos de ejemplo
@@ -187,24 +189,24 @@ export const generateSampleEvents = (trackingNumber: string): TrackingEvent[] =>
   const events: TrackingEvent[] = [
     {
       id: '1',
-      eventType: 'received',
-      pointName: 'Centro de Distribución Madrid',
+      event_type: 'received',
+      location: 'Centro de Distribución Madrid',
       description: 'Paquete recibido en centro de distribución',
       timestamp: new Date(now.getTime() - 24 * 60 * 60 * 1000), // 1 día atrás
       operator: 'Admin',
     },
     {
       id: '2',
-      eventType: 'classified',
-      pointName: 'Centro de Distribución Madrid',
+      event_type: 'classified',
+      location: 'Centro de Distribución Madrid',
       description: 'Paquete clasificado y preparado para envío',
       timestamp: new Date(now.getTime() - 20 * 60 * 60 * 1000), // 20 horas atrás
       operator: 'Admin',
     },
     {
       id: '3',
-      eventType: 'dispatched',
-      pointName: 'Aeropuerto Madrid-Barajas',
+      event_type: 'dispatched',
+      location: 'Aeropuerto Madrid-Barajas',
       description: 'Paquete despachado hacia destino',
       timestamp: new Date(now.getTime() - 18 * 60 * 60 * 1000), // 18 horas atrás
       operator: 'Admin',
@@ -220,7 +222,7 @@ export const generateSampleEvents = (trackingNumber: string): TrackingEvent[] =>
 // Función para agregar un nuevo evento
 export const addTrackingEvent = (
   trackingNumber: string,
-  eventType: TrackingEvent['eventType'],
+  event_type: TrackingEvent['event_type'],
   location: string,
   operator: string,
   notes?: string,
@@ -228,9 +230,9 @@ export const addTrackingEvent = (
 ): TrackingEvent => {
   return {
     id: Date.now().toString(),
-    eventType,
-    pointName: location,
-    description: `Evento ${eventType} registrado en ${location}`,
+    event_type,
+    location,
+    description: `Evento ${event_type} registrado en ${location}`,
     timestamp: new Date(),
     operator,
     notes,
@@ -249,7 +251,7 @@ export const generateTrackingNumber = (): string => {
 export const createTrackingEvent = (
   trackingNumber: string,
   pointId: string,
-  eventType: TrackingEvent['eventType'],
+  event_type: TrackingEvent['event_type'],
   operator: string,
   description: string,
   flightNumber?: string,
@@ -261,8 +263,8 @@ export const createTrackingEvent = (
   
   return {
     id: `${trackingNumber}-${Date.now()}`,
-    eventType,
-    pointName: point?.name || 'Punto desconocido',
+    event_type,
+    location: point?.name || 'Punto desconocido',
     description,
     timestamp: new Date(),
     operator,
@@ -306,7 +308,7 @@ export const checkInternalAlerts = (trackingItems: TrackingItem[]): InternalAler
     const lastEvent = item.events[item.events.length - 1];
     const timeSinceLastUpdate = (now.getTime() - lastEvent.timestamp.getTime()) / (1000 * 60 * 60); // hours
 
-    if (timeSinceLastUpdate > DELAY_THRESHOLD_HOURS && item.status !== 'delivered') {
+    if (timeSinceLastUpdate > DELAY_THRESHOLD_HOURS) {
       const severity = timeSinceLastUpdate > 6 ? 'critical' : 
                       timeSinceLastUpdate > 4 ? 'high' : 
                       timeSinceLastUpdate > 2.5 ? 'medium' : 'low';

@@ -18,6 +18,11 @@ import { PublicTrackingScreen } from '../screens/PublicTrackingScreen';
 import { PublicTrackingQueryScreen } from '../screens/PublicTrackingQueryScreen';
 import { UserPackagesScreen } from '../screens/UserPackagesScreen';
 import { PreRegistrationScreen } from '../screens/PreRegistrationScreen';
+import { AllPreRegistrationsScreen } from '../screens/AllPreRegistrationsScreen';
+import { AdminClaimsScreen } from '../screens/AdminClaimsScreen';
+import { UserClaimsScreen } from '../screens/UserClaimsScreen';
+import { AdminReturnsScreen } from '../screens/AdminReturnsScreen';
+import { UserReturnsScreen } from '../screens/UserReturnsScreen';
 
 // Tema de colores Boa
 const BOA_COLORS = {
@@ -39,6 +44,25 @@ const Stack = createStackNavigator();
 
 // Stack Navigator principal que incluye todas las pantallas
 function MainStack({ currentUser }: any) {
+  const headerOptions = (title: string) => ({
+    headerShown: true,
+    title,
+    headerStyle: {
+      backgroundColor: BOA_COLORS.primary,
+    },
+    headerTintColor: BOA_COLORS.white,
+    headerTitleStyle: {
+      fontWeight: 'bold' as 'bold',
+      fontSize: 18,
+    },
+    headerTitleAlign: 'center' as 'center',
+    headerLeft: ({ onPress }: { onPress?: () => void }) => (
+      <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+        <MaterialIcons name="arrow-back" size={24} color={BOA_COLORS.white} />
+      </TouchableOpacity>
+    ),
+  });
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -49,6 +73,7 @@ function MainStack({ currentUser }: any) {
         name="Home" 
         component={HomeScreen}
         initialParams={{ currentUser }}
+        key={currentUser ? `user-${currentUser.id}`: 'guest'}
       />
       <Stack.Screen 
         name="Tracking" 
@@ -63,7 +88,7 @@ function MainStack({ currentUser }: any) {
       <Stack.Screen
         name="InternalAlerts"
         component={InternalAlertsScreen}
-        options={{ headerShown: false }}
+        options={headerOptions('Alertas Internas')}
       />
       <Stack.Screen
         name="TrackingDetail"
@@ -76,7 +101,7 @@ function MainStack({ currentUser }: any) {
           },
           headerTintColor: BOA_COLORS.white,
           headerTitleStyle: {
-            fontWeight: 'bold',
+            fontWeight: 'bold' as 'bold',
             fontSize: 18,
           },
           headerTitleAlign: 'center',
@@ -95,7 +120,7 @@ function MainStack({ currentUser }: any) {
       <Stack.Screen
         name="PackageHistory"
         component={PackageHistoryScreen}
-        options={{ headerShown: false }}
+        options={headerOptions('Historial del Paquete')}
       />
       <Stack.Screen
         name="PublicTracking"
@@ -105,26 +130,49 @@ function MainStack({ currentUser }: any) {
       <Stack.Screen
         name="PublicTrackingQuery"
         component={PublicTrackingQueryScreen}
-        options={{ headerShown: false }}
+        options={headerOptions('Consulta de Tracking')}
       />
       <Stack.Screen
         name="UserPackages"
         component={UserPackagesScreen}
-        options={{ headerShown: false }}
+        options={headerOptions('Mis Paquetes')}
       />
       <Stack.Screen
         name="PreRegistration"
         component={PreRegistrationScreen}
-        options={{ headerShown: false }}
+        options={headerOptions('Pre-Registro de Envío')}
+      />
+      <Stack.Screen
+        name="AllPreRegistrations"
+        component={AllPreRegistrationsScreen}
+        options={headerOptions('Todos los Pre-Registros')}
+      />
+      <Stack.Screen
+        name="AdminClaims"
+        component={AdminClaimsScreen}
+        options={headerOptions('Reclamos de Usuarios')}
+      />
+      <Stack.Screen
+        name="AdminReturns"
+        component={AdminReturnsScreen}
+        options={headerOptions('Gestión de Devoluciones')}
+      />
+      <Stack.Screen
+        name="UserClaims"
+        component={UserClaimsScreen}
+        options={headerOptions('Mis Reclamos')}
+      />
+      <Stack.Screen
+        name="UserReturns"
+        component={UserReturnsScreen}
+        options={headerOptions('Mis Devoluciones')}
       />
     </Stack.Navigator>
   );
 }
 
 // Tab Navigator - solo se muestra cuando hay usuario logueado
-function MainTabs({ route }: any) {
-  const { currentUser } = route.params;
-
+function MainTabs({ currentUser }: any) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -206,11 +254,13 @@ export const AppNavigator = ({
       {currentUser ? (
         // Usuario logueado - mostrar tabs
         <MainTabs 
+          key={currentUser.id}
           currentUser={currentUser}
         />
       ) : (
         // Usuario no logueado - mostrar stack sin tabs
         <MainStack 
+          key="guest"
           currentUser={currentUser}
         />
       )}

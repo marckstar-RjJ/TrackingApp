@@ -1,279 +1,179 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { BOA_COLORS } from '../theme/colors';
-import { 
-  InternalAlert, 
-  checkInternalAlerts, 
-  getAlertStatistics,
-  resolveAlert 
-} from '../utils/tracking';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, SafeAreaView, StyleSheet, ImageBackground, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
+import { BOA_COLORS } from '../theme';
 
-const InternalAlertsScreen: React.FC = () => {
-  const [alerts, setAlerts] = useState<InternalAlert[]>([]);
-  const [statistics, setStatistics] = useState(getAlertStatistics([]));
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
-  const [showResolved, setShowResolved] = useState(false);
+const InternalAlertsScreen = () => {
+  const [internalAlerts, setInternalAlerts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState('active'); // 'active' o 'solved'
 
-  const loadAlerts = async () => {
+  const fetchInternalAlerts = useCallback(async (status: string) => {
+    setIsLoading(true);
     try {
-      const res = await fetch('http://192.168.100.16:3000/api/packages');
+      const res = await fetch(`http://192.168.100.16:3000/api/alerts/type/internal_monitoring?status=${status}`);
+      if (!res.ok) {
+        setInternalAlerts([]);
+        return;
+      }
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Mapear eventos a formato TrackingItem
-        const trackingItems = data.map((pkg: any) => ({
-          ...pkg,
-          trackingNumber: pkg.tracking_number,
-          events: Array.isArray(pkg.events)
-            ? pkg.events.map((ev: any) => ({
-                ...ev,
-                timestamp: ev.timestamp ? new Date(ev.timestamp.replace(' ', 'T')) : null
-              }))
-            : [],
-        }));
-        const newAlerts = checkInternalAlerts(trackingItems);
-    setAlerts(newAlerts);
-    setStatistics(getAlertStatistics(newAlerts));
+        const alerts = data.map(alert => {
+          const lastUpdate = new Date(alert.created_at);
+          const timeSinceLastUpdate = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+          return {
+            ...alert,
+            trackingNumber: alert.package_tracking,
+            lastUpdate: alert.created_at,
+            timeSinceLastUpdate: timeSinceLastUpdate,
+          };
+        });
+        setInternalAlerts(alerts);
       } else {
-        setAlerts([]);
-        setStatistics(getAlertStatistics([]));
+        setInternalAlerts([]);
       }
-    } catch (e) {
-      setAlerts([]);
-      setStatistics(getAlertStatistics([]));
+    } catch (error) {
+      console.error("Error fetching internal alerts:", error);
+      setInternalAlerts([]);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadAlerts();
   }, []);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadAlerts();
-    setRefreshing(false);
-  };
-
-  const handleResolveAlert = (alertId: string) => {
-    Alert.alert(
-      'Resolver Alerta',
-      '¿Estás seguro de que quieres marcar esta alerta como resuelta?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Resolver',
-          onPress: () => {
-            const updatedAlerts = alerts.map(alert => 
-              alert.id === alertId 
-                ? { ...alert, isResolved: true, resolvedAt: new Date(), resolvedBy: 'Admin' }
-                : alert
-            );
-            setAlerts(updatedAlerts);
-            setStatistics(getAlertStatistics(updatedAlerts));
-          }
-        }
-      ]
-    );
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return '#dc3545';
-      case 'high': return '#fd7e14';
-      case 'medium': return '#ffc107';
-      case 'low': return '#28a745';
-      default: return BOA_COLORS.gray;
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'warning';
-      case 'high': return 'alert-circle';
-      case 'medium': return 'information-circle';
-      case 'low': return 'checkmark-circle';
-      default: return 'help-circle';
-    }
-  };
-
-  const filteredAlerts = alerts.filter(alert => 
-    (filter === 'all' || alert.severity === filter) &&
-    (showResolved ? alert.isResolved : !alert.isResolved)
+  useFocusEffect(
+    useCallback(() => {
+      fetchInternalAlerts(filter);
+    }, [fetchInternalAlerts, filter])
   );
 
-  const StatCard = ({ title, value, color, icon }: { title: string; value: number; color: string; icon: string }) => (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <View style={styles.statHeader}>
-        <Ionicons name={icon as any} size={20} color={color} />
-        <Text style={styles.statTitle}>{title}</Text>
+  const handleCopyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    Alert.alert('Copiado', 'El número de tracking ha sido copiado al portapapeles.');
+  };
+
+  const handleSolveAlert = async (alertId: number) => {
+    try {
+      const res = await fetch(`http://192.168.100.16:3000/api/alerts/${alertId}/solve`, {
+        method: 'PUT',
+      });
+      if (res.ok) {
+        Alert.alert('Éxito', 'La alerta ha sido marcada como solucionada.');
+        fetchInternalAlerts(filter); // Recargar las alertas
+      } else {
+        const errorData = await res.json();
+        Alert.alert('Error', errorData.error || 'No se pudo solucionar la alerta.');
+      }
+    } catch (error) {
+      Alert.alert('Error de Conexión', 'No se pudo conectar con el servidor.');
+    }
+  };
+
+  const getAlertColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return '#d32f2f';
+      case 'high':
+        return '#f57c00';
+      case 'medium':
+        return '#fbc02d';
+      default:
+        return '#1976d2';
+    }
+  };
+
+  const renderActiveAlert = (alert: any) => (
+    <View key={alert.id} style={[styles.alertContainer, { backgroundColor: getAlertColor(alert.severity) }]}>
+      <Text style={styles.alertTitle}>{alert.title}</Text>
+      <Text style={styles.alertDescription}>{alert.description}</Text>
+      
+      <View style={styles.activeTrackingContainer}>
+        <Text style={styles.alertInfo}>Tracking: {alert.trackingNumber}</Text>
+        <TouchableOpacity onPress={() => handleCopyToClipboard(alert.trackingNumber)}>
+          <MaterialIcons name="content-copy" size={20} color="#fff" style={{ marginLeft: 8 }}/>
+        </TouchableOpacity>
       </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
+
+      <Text style={styles.alertInfo}>
+        Última actualización: {alert.lastUpdate ? new Date(alert.lastUpdate).toLocaleString() : 'N/A'}
+      </Text>
+      {alert.timeSinceLastUpdate !== undefined && (
+        <Text style={styles.alertInfo}>
+          Retraso: {alert.timeSinceLastUpdate.toFixed(1)} horas
+        </Text>
+      )}
+
+      <TouchableOpacity 
+        style={styles.solveButton}
+        onPress={() => handleSolveAlert(alert.id)}
+      >
+        <MaterialIcons name="check-circle" size={18} color={BOA_COLORS.success} />
+        <Text style={styles.solveButtonText}>Marcar como Solucionado</Text>
+      </TouchableOpacity>
     </View>
   );
 
-  const AlertCard = ({ alert }: { alert: InternalAlert }) => (
-    <View style={[styles.alertCard, { borderLeftColor: getSeverityColor(alert.severity) }]}>
-      <View style={styles.alertHeader}>
-        <View style={styles.alertTitleRow}>
-          <Ionicons 
-            name={getSeverityIcon(alert.severity) as any} 
-            size={20} 
-            color={getSeverityColor(alert.severity)} 
-          />
-          <Text style={styles.alertTitle}>{alert.title}</Text>
+  const renderSolvedAlert = (alert: any) => (
+    <View key={alert.id} style={styles.solvedAlertContainer}>
+        <View style={styles.solvedAlertHeader}>
+            <MaterialIcons name="check-circle" size={22} color={BOA_COLORS.success} />
+            <Text style={styles.solvedAlertTitle}>{alert.title}</Text>
         </View>
-        <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(alert.severity) }]}>
-          <Text style={styles.severityText}>{alert.severity.toUpperCase()}</Text>
+        <Text style={styles.solvedAlertDescription}>{alert.description}</Text>
+        <View style={styles.solvedTrackingContainer}>
+            <Text style={styles.solvedAlertInfo}>Tracking: {alert.trackingNumber}</Text>
+            <TouchableOpacity onPress={() => handleCopyToClipboard(alert.trackingNumber)}>
+                <MaterialIcons name="content-copy" size={20} color={BOA_COLORS.gray} style={{ marginLeft: 8 }}/>
+            </TouchableOpacity>
         </View>
-      </View>
-      
-      <Text style={styles.alertDescription}>{alert.description}</Text>
-      
-      <View style={styles.alertInfo}>
-        <Text style={styles.alertInfoText}>
-          <Text style={styles.infoLabel}>Tracking:</Text> {alert.trackingNumber}
-        </Text>
-        <Text style={styles.alertInfoText}>
-          <Text style={styles.infoLabel}>Destinatario:</Text> {alert.packageInfo.recipient}
-        </Text>
-        <Text style={styles.alertInfoText}>
-          <Text style={styles.infoLabel}>Descripción:</Text> {alert.packageInfo.description}
-        </Text>
-        <Text style={styles.alertInfoText}>
-          <Text style={styles.infoLabel}>Ruta:</Text> {alert.packageInfo.origin} → {alert.packageInfo.destination}
-        </Text>
-        <Text style={styles.alertInfoText}>
-          <Text style={styles.infoLabel}>Última actualización:</Text> {alert.lastUpdate.toLocaleString()}
-        </Text>
-      </View>
-
-      {!alert.isResolved && (
-        <TouchableOpacity 
-          style={styles.resolveButton}
-          onPress={() => handleResolveAlert(alert.id)}
-        >
-          <Ionicons name="checkmark" size={16} color="white" />
-          <Text style={styles.resolveButtonText}>Marcar como Resuelta</Text>
-        </TouchableOpacity>
-      )}
-
-      {alert.isResolved && (
-        <View style={styles.resolvedInfo}>
-          <Ionicons name="checkmark-circle" size={16} color="#28a745" />
-          <Text style={styles.resolvedText}>
-            Resuelta por {alert.resolvedBy} el {alert.resolvedAt?.toLocaleString()}
+        {alert.solved_at && (
+          <Text style={styles.solvedAlertInfo}>
+            Solucionado: {new Date(alert.solved_at).toLocaleString()}
           </Text>
-        </View>
-      )}
+        )}
+        <Text style={styles.solvedAlertInfo}>
+          Creada: {new Date(alert.created_at).toLocaleString()}
+        </Text>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Alertas Internas</Text>
-        <Text style={styles.headerSubtitle}>Monitoreo de retrasos en paquetes</Text>
-      </View>
-
-      <ScrollView 
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+      <ImageBackground
+        source={require('../assets/fondo_mobile.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
       >
-        {/* Estadísticas */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Resumen</Text>
-          <View style={styles.statsGrid}>
-            <StatCard 
-              title="Críticas" 
-              value={statistics.critical} 
-              color="#dc3545" 
-              icon="warning" 
-            />
-            <StatCard 
-              title="Altas" 
-              value={statistics.high} 
-              color="#fd7e14" 
-              icon="alert-circle" 
-            />
-            <StatCard 
-              title="Medias" 
-              value={statistics.medium} 
-              color="#ffc107" 
-              icon="information-circle" 
-            />
-            <StatCard 
-              title="Bajas" 
-              value={statistics.low} 
-              color="#28a745" 
-              icon="checkmark-circle" 
-            />
-          </View>
+        <View style={styles.filterContainer}>
+            <TouchableOpacity 
+                style={[styles.filterButton, filter === 'active' && styles.filterButtonActive]}
+                onPress={() => setFilter('active')}
+            >
+                <Text style={[styles.filterButtonText, filter === 'active' && styles.filterButtonTextActive]}>Activas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+                style={[styles.filterButton, filter === 'solved' && styles.filterButtonActive]}
+                onPress={() => setFilter('solved')}
+            >
+                <Text style={[styles.filterButtonText, filter === 'solved' && styles.filterButtonTextActive]}>Solucionadas</Text>
+            </TouchableOpacity>
         </View>
-
-        {/* Filtros */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', margin: 16 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-            {['all', 'critical', 'high', 'medium', 'low'].map(sev => (
-              <TouchableOpacity
-                key={sev}
-                style={{
-                  backgroundColor: filter === sev ? getSeverityColor(sev) : BOA_COLORS.lightGray,
-                  borderRadius: 16,
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  marginRight: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderWidth: filter === sev ? 2 : 1,
-                  borderColor: filter === sev ? getSeverityColor(sev) : BOA_COLORS.lightGray,
-                }}
-                onPress={() => setFilter(sev as any)}
-              >
-                <Ionicons name={getSeverityIcon(sev)} size={18} color={filter === sev ? '#fff' : getSeverityColor(sev)} style={{ marginRight: 6 }} />
-                <Text style={{ color: filter === sev ? '#fff' : getSeverityColor(sev), fontWeight: 'bold', textTransform: 'capitalize' }}>{sev === 'all' ? 'Todas' : sev}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <TouchableOpacity
-            style={{ marginLeft: 10, padding: 8, borderRadius: 8, backgroundColor: showResolved ? BOA_COLORS.primary : BOA_COLORS.lightGray }}
-            onPress={() => setShowResolved(!showResolved)}
-          >
-            <Ionicons name={showResolved ? 'eye' : 'eye-off'} size={20} color={showResolved ? '#fff' : BOA_COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Lista de Alertas */}
-        <View style={styles.alertsSection}>
-          <Text style={styles.sectionTitle}>
-            Alertas ({filteredAlerts.length})
-          </Text>
-          
-          {filteredAlerts.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle" size={48} color={BOA_COLORS.gray} />
-              <Text style={styles.emptyStateText}>
-                {filter === 'all' ? 'No hay alertas activas' : `No hay alertas ${filter}`}
-              </Text>
-            </View>
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+          {isLoading ? (
+            <ActivityIndicator size="large" color={BOA_COLORS.white} style={{ marginTop: 50 }}/>
+          ) : internalAlerts.length > 0 ? (
+            internalAlerts.map(alert => 
+                filter === 'active' ? renderActiveAlert(alert) : renderSolvedAlert(alert)
+            )
           ) : (
-            filteredAlerts.map(alert => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))
+            <View style={styles.noAlertsContainer}>
+              <MaterialIcons name="check-circle" size={64} color={BOA_COLORS.success} />
+              <Text style={styles.noAlertsText}>No hay alertas internas en este momento.</Text>
+            </View>
           )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </ImageBackground>
     </SafeAreaView>
   );
 };
@@ -283,163 +183,136 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BOA_COLORS.primary,
   },
-  header: {
-    padding: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  content: {
+  backgroundImage: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
-  statsSection: {
+  scrollViewContent: {
     padding: 20,
+    paddingBottom: 60,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: BOA_COLORS.primary,
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: 'white',
+  alertContainer: {
     borderRadius: 12,
     padding: 16,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 10,
   },
-  statHeader: {
+  alertTitle: {
+    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  alertDescription: {
+    color: '#fff',
+    marginBottom: 8,
+  },
+  alertInfo: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  trackingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  solveButton: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  solveButtonText: {
+    color: BOA_COLORS.success,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  noAlertsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 15,
+  },
+  noAlertsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: BOA_COLORS.dark,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(25, 118, 210, 0.9)',
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginHorizontal: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  filterButtonActive: {
+    backgroundColor: '#fff',
+  },
+  filterButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  filterButtonTextActive: {
+    color: BOA_COLORS.primary,
+  },
+  solvedAlertContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: BOA_COLORS.success,
+  },
+  solvedAlertHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  statTitle: {
-    fontSize: 12,
-    color: BOA_COLORS.gray,
-    marginLeft: 8,
-  },
-  statValue: {
-    fontSize: 24,
+  solvedAlertTitle: {
     fontWeight: 'bold',
-  },
-  alertsSection: {
-    padding: 20,
-  },
-  alertCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  alertTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  alertTitle: {
+    color: BOA_COLORS.dark,
     fontSize: 16,
-    fontWeight: 'bold',
-    color: BOA_COLORS.primary,
-    marginLeft: 8,
-    flex: 1,
-  },
-  severityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  severityText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  alertDescription: {
-    fontSize: 14,
-    color: BOA_COLORS.gray,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  alertInfo: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  alertInfoText: {
-    fontSize: 12,
-    color: BOA_COLORS.gray,
-    marginBottom: 4,
-  },
-  infoLabel: {
-    fontWeight: '600',
-    color: BOA_COLORS.primary,
-  },
-  resolveButton: {
-    backgroundColor: BOA_COLORS.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  resolveButtonText: {
-    color: 'white',
-    fontWeight: '600',
     marginLeft: 8,
   },
-  resolvedInfo: {
+  solvedAlertDescription: {
+    color: BOA_COLORS.gray,
+    marginBottom: 8,
+  },
+  solvedAlertInfo: {
+      color: BOA_COLORS.dark,
+      fontSize: 13,
+  },
+  activeTrackingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    marginBottom: 8,
+    marginTop: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
     padding: 8,
-    borderRadius: 6,
+    borderRadius: 8,
   },
-  resolvedText: {
-    fontSize: 12,
-    color: '#155724',
-    marginLeft: 8,
-  },
-  emptyState: {
+  solvedTrackingContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 40,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: BOA_COLORS.gray,
-    marginTop: 16,
-    textAlign: 'center',
+    marginBottom: 4,
+    backgroundColor: '#f5f5f5',
+    padding: 8,
+    borderRadius: 8,
   },
 });
 

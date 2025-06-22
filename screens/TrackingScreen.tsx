@@ -172,40 +172,66 @@ export const TrackingScreen = ({ navigation, route }: any) => {
   }, []);
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'En tránsito':
-        return BOA_COLORS.warning;
-      case 'Entregado':
+    switch (status.toLowerCase()) {
+      case 'received':
+      case 'recibido':
+      case 'en almacén':
         return BOA_COLORS.success;
-      case 'En almacén':
+      case 'classified':
+      case 'clasificado':
+      case 'en procesamiento':
         return BOA_COLORS.secondary;
-      case 'Retenido en aduana':
-        return BOA_COLORS.danger;
-      case 'En vuelo':
+      case 'dispatched':
+      case 'despachado':
+      case 'en tránsito':
+        return BOA_COLORS.warning;
+      case 'in_flight':
+      case 'en vuelo':
         return BOA_COLORS.primary;
-      case 'En procesamiento':
+      case 'customs_clearance':
+      case 'aduanas':
+      case 'retenido en aduana':
+        return BOA_COLORS.danger;
+      case 'out_for_delivery':
+      case 'en entrega':
         return BOA_COLORS.accent;
+      case 'delivered':
+      case 'entregado':
+        return BOA_COLORS.success;
       default:
         return BOA_COLORS.gray;
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'En tránsito':
+    switch (status.toLowerCase()) {
+      case 'received':
+      case 'recibido':
+      case 'en almacén':
+        return 'inbox';
+      case 'classified':
+      case 'clasificado':
+      case 'en procesamiento':
+        return 'sort';
+      case 'dispatched':
+      case 'despachado':
+      case 'en tránsito':
         return 'local-shipping';
-      case 'Entregado':
-        return 'check-circle';
-      case 'En almacén':
-        return 'warehouse';
-      case 'Retenido en aduana':
-        return 'gavel';
-      case 'En vuelo':
+      case 'in_flight':
+      case 'en vuelo':
         return 'flight';
-      case 'En procesamiento':
-        return 'settings';
+      case 'customs_clearance':
+      case 'aduanas':
+      case 'retenido en aduana':
+        return 'gavel';
+      case 'out_for_delivery':
+      case 'en entrega':
+        return 'delivery-dining';
+      case 'delivered':
+      case 'entregado':
+        return 'check-circle';
       default:
-        return 'info';
+        return 'local-shipping';
     }
   };
 
@@ -225,7 +251,27 @@ export const TrackingScreen = ({ navigation, route }: any) => {
   const filteredData = trackingData.filter(item => {
     const matchesSearch = item.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' || item.status.toLowerCase().includes(selectedFilter);
+    
+    // Lógica de filtrado actualizada para los nuevos tipos de eventos
+    let matchesFilter = true;
+    if (selectedFilter !== 'all') {
+      // Mapear los filtros a los estados correspondientes
+      const statusMapping: { [key: string]: string[] } = {
+        'received': ['received', 'Recibido', 'En almacén'],
+        'classified': ['classified', 'Clasificado', 'En procesamiento'],
+        'dispatched': ['dispatched', 'Despachado', 'En tránsito'],
+        'in_flight': ['in_flight', 'En vuelo'],
+        'customs_clearance': ['customs_clearance', 'Aduanas', 'Retenido en aduana'],
+        'out_for_delivery': ['out_for_delivery', 'En Entrega'],
+        'delivered': ['delivered', 'Entregado']
+      };
+      
+      const validStatuses = statusMapping[selectedFilter] || [];
+      matchesFilter = validStatuses.some(status => 
+        item.status.toLowerCase().includes(status.toLowerCase())
+      );
+    }
+    
     return matchesSearch && matchesFilter;
   });
 
@@ -373,19 +419,32 @@ export const TrackingScreen = ({ navigation, route }: any) => {
 
   // Nueva función para obtener descripción detallada del estado
   const getStatusDescription = (status: string, location?: string) => {
-    switch (status) {
-      case 'En tránsito':
-        return location ? `En tránsito hacia ${location}` : 'En tránsito';
-      case 'Entregado':
-        return 'Paquete entregado exitosamente';
-      case 'En almacén':
-        return location ? `En almacén en ${location}` : 'En almacén';
-      case 'Retenido en aduana':
-        return location ? `Retenido en aduana de ${location}` : 'Retenido en aduana';
-      case 'En vuelo':
+    switch (status.toLowerCase()) {
+      case 'received':
+      case 'recibido':
+      case 'en almacén':
+        return location ? `Recibido en ${location}` : 'Recibido en centro de distribución';
+      case 'classified':
+      case 'clasificado':
+      case 'en procesamiento':
+        return location ? `Clasificado en ${location}` : 'En proceso de clasificación';
+      case 'dispatched':
+      case 'despachado':
+      case 'en tránsito':
+        return location ? `Despachado hacia ${location}` : 'En tránsito';
+      case 'in_flight':
+      case 'en vuelo':
         return location ? `En vuelo hacia ${location}` : 'En vuelo';
-      case 'En procesamiento':
-        return location ? `En procesamiento en ${location}` : 'En procesamiento';
+      case 'customs_clearance':
+      case 'aduanas':
+      case 'retenido en aduana':
+        return location ? `En aduana de ${location}` : 'En proceso aduanero';
+      case 'out_for_delivery':
+      case 'en entrega':
+        return location ? `En ruta de entrega en ${location}` : 'En ruta de entrega';
+      case 'delivered':
+      case 'entregado':
+        return 'Paquete entregado exitosamente';
       default:
         return status;
     }
@@ -763,7 +822,16 @@ export const TrackingScreen = ({ navigation, route }: any) => {
 
           {/* Filtros */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
-            {['all', 'En vuelo', 'En tránsito', 'En procesamiento', 'En almacén', 'Entregado', 'Retenido en aduana'].map((filter) => (
+            {[
+              'all', 
+              'received', 
+              'classified', 
+              'dispatched', 
+              'in_flight', 
+              'customs_clearance', 
+              'out_for_delivery', 
+              'delivered'
+            ].map((filter) => (
               <TouchableOpacity
                 key={filter}
                 style={[
@@ -776,7 +844,14 @@ export const TrackingScreen = ({ navigation, route }: any) => {
                   styles.filterText,
                   selectedFilter === filter && styles.filterTextActive
                 ]} numberOfLines={1} ellipsizeMode="tail">
-                  {filter === 'all' ? 'Todos' : filter}
+                  {filter === 'all' ? 'Todos' : 
+                   filter === 'received' ? 'Recibido' :
+                   filter === 'classified' ? 'Clasificado' :
+                   filter === 'dispatched' ? 'Despachado' :
+                   filter === 'in_flight' ? 'En Vuelo' :
+                   filter === 'customs_clearance' ? 'Aduanas' :
+                   filter === 'out_for_delivery' ? 'En Entrega' :
+                   filter === 'delivered' ? 'Entregado' : filter}
                 </Text>
               </TouchableOpacity>
             ))}

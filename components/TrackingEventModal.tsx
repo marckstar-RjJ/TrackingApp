@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,27 +6,37 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
+  Dimensions,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { BOA_COLORS } from '../theme';
-import { 
-  TrackingPoint, 
-  TrackingEvent, 
-  TRACKING_POINTS, 
-  AIRLINES,
-  createTrackingEvent 
-} from '../utils/tracking';
+import Signature from 'react-native-signature-canvas';
+
+interface TrackingEvent {
+  id: string;
+  event_type: 'received' | 'classified' | 'dispatched' | 'in_flight' | 'delivered' | 'customs_clearance' | 'out_for_delivery';
+  location: string;
+  timestamp: Date;
+  operator: string;
+  notes?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+}
 
 interface TrackingEventModalProps {
   visible: boolean;
   onClose: () => void;
   onEventCreated: (event: TrackingEvent) => void;
   trackingNumber: string;
-  currentLocation?: string;
   operator: string;
-  estimatedDelivery?: string;
+  currentLocation?: string;
 }
 
 export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
@@ -34,82 +44,177 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
   onClose,
   onEventCreated,
   trackingNumber,
-  currentLocation,
   operator,
-  estimatedDelivery,
+  currentLocation: initialLocation,
 }) => {
-  const [selectedPoint, setSelectedPoint] = useState<TrackingPoint | null>(null);
-  const [eventType, setEventType] = useState<TrackingEvent['eventType']>('arrival');
-  const [description, setDescription] = useState('');
-  const [flightNumber, setFlightNumber] = useState('');
-  const [selectedAirline, setSelectedAirline] = useState('');
-  const [nextDestination, setNextDestination] = useState('');
+  const [currentLocation, setCurrentLocation] = useState<string>(initialLocation || '');
+  const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
+  const [selectedEventType, setSelectedEventType] = useState<TrackingEvent['event_type']>('received');
   const [notes, setNotes] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [recipientCI, setRecipientCI] = useState('');
+  const [signature, setSignature] = useState<string | null>(null);
+  const [showSignature, setShowSignature] = useState(false);
+
+  // Debug: verificar el valor del trackingNumber
+  console.log('TrackingEventModal - trackingNumber:', trackingNumber);
 
   const eventTypes = [
-    { value: 'arrival', label: 'Llegada', icon: 'flight-land' },
-    { value: 'departure', label: 'Salida', icon: 'flight-takeoff' },
-    { value: 'processing', label: 'Procesamiento', icon: 'settings' },
-    { value: 'customs_clearance', label: 'Aduana', icon: 'gavel' },
-    { value: 'in_transit', label: 'En Tránsito', icon: 'local-shipping' },
+    { value: 'received', label: 'Recibido', icon: 'inbox' },
+    { value: 'classified', label: 'Clasificado', icon: 'sort' },
+    { value: 'dispatched', label: 'Despachado', icon: 'local-shipping' },
+    { value: 'in_flight', label: 'En Vuelo', icon: 'flight' },
+    { value: 'customs_clearance', label: 'Aduanas', icon: 'gavel' },
+    { value: 'out_for_delivery', label: 'En Entrega', icon: 'delivery-dining' },
     { value: 'delivered', label: 'Entregado', icon: 'check-circle' },
   ];
 
-  const handleSubmit = () => {
-    if (!selectedPoint) {
-      Alert.alert('Error', 'Por favor selecciona un punto de control');
+  useEffect(() => {
+    if (visible) {
+      setCurrentLocation(initialLocation || '');
+      setCoordinates(null);
+      setSelectedEventType('received');
+      setNotes('');
+      setRecipientCI('');
+      setSignature(null);
+      if (!initialLocation) {
+        getCurrentLocation();
+      }
+    } else {
+      // Limpiar todos los datos cuando el modal se cierra
+      setCurrentLocation('');
+      setCoordinates(null);
+      setSelectedEventType('received');
+      setNotes('');
+      setRecipientCI('');
+      setSignature(null);
+    }
+  }, [visible, initialLocation]);
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos de ubicación para registrar la localización del evento.');
       return;
     }
 
-    if (!description.trim()) {
-      Alert.alert('Error', 'Por favor ingresa una descripción del evento');
-      return;
-    }
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      setCoordinates({ latitude, longitude });
 
-    const event = createTrackingEvent(
-      trackingNumber,
-      selectedPoint.id,
-      eventType,
-      operator,
-      description,
-      flightNumber || undefined,
-      selectedAirline || undefined,
-      nextDestination || undefined,
-      notes || undefined
+      // Obtener dirección a partir de coordenadas
+      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (address.length > 0) {
+        const addr = address[0];
+        const locationString = `${addr.city || ''} ${addr.region || ''} ${addr.country || ''}`.trim();
+        setCurrentLocation(locationString || 'Ubicación actual');
+      } else {
+        setCurrentLocation('Ubicación actual');
+      }
+    } catch (error) {
+      console.log('Error obteniendo ubicación:', error);
+      setCurrentLocation('Ubicación no disponible');
+    }
+  };
+
+  const handleSignatureOK = (sig: string) => {
+    setSignature(sig);
+    setShowSignature(false);
+    Alert.alert('Firma Guardada', 'La firma digital ha sido capturada exitosamente.');
+  };
+
+  const validateForm = (): boolean => {
+    if (!currentLocation.trim()) {
+      Alert.alert('Error', 'No se pudo obtener la ubicación. Por favor, intenta de nuevo.');
+      return false;
+    }
+    // Si es entrega, CI es obligatorio
+    if (selectedEventType === 'delivered' && !recipientCI.trim()) {
+      Alert.alert('Error', 'El CI del destinatario es obligatorio para la entrega.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleRegisterEvent = () => {
+    if (!validateForm()) return;
+    
+    // Mostrar confirmación antes de registrar
+    Alert.alert(
+      'Confirmar Registro',
+      `¿Registrar el siguiente evento?\n\nPaquete: ${trackingNumber}\nEvento: ${getEventTypeInfo(selectedEventType).label}\nUbicación: ${currentLocation}\nOperador: ${operator}\nNotas: ${notes || 'Ninguna'}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Registrar',
+          onPress: async () => {
+            setIsLoading(true);
+            // POST al backend
+            const body = {
+              package_tracking: trackingNumber,
+              event_type: selectedEventType,
+              location: currentLocation,
+              operator: operator,
+              notes: notes || '',
+              timestamp: new Date().toISOString(), // Enviar timestamp desde frontend
+            };
+            try {
+              const res = await fetch('http://192.168.100.16:3000/api/packages/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              });
+              const data = await res.json();
+              if (res.ok) {
+                Alert.alert('Éxito', 'Evento registrado correctamente.');
+                // Limpiar y cerrar
+                setCurrentLocation('');
+                setCoordinates(null);
+                setNotes('');
+                setSelectedEventType('received');
+                setRecipientCI('');
+                setSignature(null);
+                setIsLoading(false);
+                onClose();
+                // Crear evento local para callback
+                const event: TrackingEvent = {
+                  id: Date.now().toString(),
+                  event_type: selectedEventType,
+                  location: currentLocation,
+                  timestamp: new Date(),
+                  operator: operator,
+                  notes: notes || undefined,
+                  coordinates: coordinates || undefined,
+                };
+                onEventCreated(event);
+              } else {
+                Alert.alert('Error', data.error || 'No se pudo registrar el evento.');
+                setIsLoading(false);
+              }
+            } catch (e) {
+              Alert.alert('Error de Conexión', 'No se pudo conectar con el servidor.');
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
     );
+  };
 
-    onEventCreated(event);
-    handleClose();
+  const getEventTypeInfo = (type: TrackingEvent['event_type']) => {
+    return eventTypes.find(et => et.value === type) || eventTypes[0];
   };
 
   const handleClose = () => {
-    setSelectedPoint(null);
-    setEventType('arrival');
-    setDescription('');
-    setFlightNumber('');
-    setSelectedAirline('');
-    setNextDestination('');
+    // Limpiar todos los datos antes de cerrar
+    setCurrentLocation('');
+    setCoordinates(null);
+    setSelectedEventType('received');
     setNotes('');
+    setRecipientCI('');
+    setSignature(null);
     onClose();
-  };
-
-  const getEventTypeColor = (type: string) => {
-    switch (type) {
-      case 'arrival':
-        return BOA_COLORS.success;
-      case 'departure':
-        return BOA_COLORS.warning;
-      case 'processing':
-        return BOA_COLORS.primary;
-      case 'customs_clearance':
-        return BOA_COLORS.danger;
-      case 'in_transit':
-        return BOA_COLORS.secondary;
-      case 'delivered':
-        return BOA_COLORS.success;
-      default:
-        return BOA_COLORS.gray;
-    }
   };
 
   return (
@@ -117,187 +222,253 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <View style={styles.header}>
-            <Text style={styles.title}>Registrar Evento de Tracking</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Text style={styles.title}>Registrar Nuevo Evento</Text>
+            <Pressable style={styles.close} onPress={handleClose}>
               <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Información del paquete */}
+            {/* Sección de Información del Paquete */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Información del Paquete</Text>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="local-shipping" size={16} color={BOA_COLORS.primary} />
-                <Text style={styles.infoText}>Tracking: {trackingNumber}</Text>
+              
+              <View style={styles.trackingPreview}>
+                <MaterialIcons name="local-shipping" size={20} color={BOA_COLORS.primary} />
+                <Text style={styles.trackingText}>
+                  {trackingNumber || 'Número de tracking no disponible'}
+                </Text>
               </View>
-              {currentLocation && (
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="location-on" size={16} color={BOA_COLORS.primary} />
-                  <Text style={styles.infoText}>Ubicación actual: {currentLocation}</Text>
-                </View>
-              )}
-              {estimatedDelivery && (
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="schedule" size={16} color={BOA_COLORS.primary} />
-                  <Text style={styles.infoText}>Entrega estimada: {estimatedDelivery}</Text>
-                </View>
-              )}
-              <View style={styles.infoRow}>
-                <MaterialIcons name="person" size={16} color={BOA_COLORS.primary} />
-                <Text style={styles.infoText}>Operador: {operator}</Text>
+
+              <View style={styles.operatorInfo}>
+                <MaterialIcons name="person" size={16} color={BOA_COLORS.gray} />
+                <Text style={styles.operatorText}>Operador: {operator}</Text>
               </View>
             </View>
 
-            {/* Punto de control */}
+            {/* Sección de Ubicación */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Punto de Control *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pointsContainer}>
-                {TRACKING_POINTS.map((point) => (
+              <Text style={styles.sectionTitle}>Ubicación del Evento</Text>
+              <View style={styles.inputGroup}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="Ingrese la ubicación o presione el botón"
+                    value={currentLocation}
+                    onChangeText={setCurrentLocation}
+                    autoCorrect={false}
+                    multiline
+                    numberOfLines={2}
+                  />
+                  <TouchableOpacity onPress={getCurrentLocation} style={{ marginLeft: 8 }}>
+                    <MaterialIcons name="my-location" size={24} color={BOA_COLORS.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {coordinates && (
+                <Text style={styles.coordinatesText}>
+                  Coordenadas: {coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)}
+                </Text>
+              )}
+            </View>
+
+            {/* Sección de Tipo de Evento */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Tipo de Evento</Text>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventTypesContainer}>
+                {eventTypes.map((eventType) => (
                   <TouchableOpacity
-                    key={point.id}
+                    key={eventType.value}
                     style={[
-                      styles.pointButton,
-                      selectedPoint?.id === point.id && styles.pointButtonActive
+                      styles.eventTypeButton,
+                      selectedEventType === eventType.value && styles.eventTypeButtonActive
                     ]}
-                    onPress={() => setSelectedPoint(point)}
+                    onPress={() => setSelectedEventType(eventType.value as TrackingEvent['event_type'])}
                   >
                     <MaterialIcons 
-                      name={point.type === 'airport' ? 'flight' : 'warehouse'} 
-                      size={16} 
-                      color={selectedPoint?.id === point.id ? BOA_COLORS.white : BOA_COLORS.primary} 
+                      name={eventType.icon as any} 
+                      size={20} 
+                      color={selectedEventType === eventType.value ? BOA_COLORS.white : BOA_COLORS.primary} 
                     />
                     <Text style={[
-                      styles.pointButtonText,
-                      selectedPoint?.id === point.id && styles.pointButtonTextActive
+                      styles.eventTypeText,
+                      selectedEventType === eventType.value && styles.eventTypeTextActive
                     ]}>
-                      {point.location}
-                    </Text>
-                    <Text style={[
-                      styles.pointButtonSubtext,
-                      selectedPoint?.id === point.id && styles.pointButtonTextActive
-                    ]}>
-                      {point.country}
+                      {eventType.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
-            {/* Tipo de evento */}
+            {/* Sección de Notas */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tipo de Evento *</Text>
-              <View style={styles.eventTypesContainer}>
-                {eventTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.eventTypeButton,
-                      eventType === type.value && styles.eventTypeButtonActive
-                    ]}
-                    onPress={() => setEventType(type.value as TrackingEvent['eventType'])}
-                  >
-                    <MaterialIcons 
-                      name={type.icon as any} 
-                      size={20} 
-                      color={eventType === type.value ? BOA_COLORS.white : getEventTypeColor(type.value)} 
-                    />
-                    <Text style={[
-                      styles.eventTypeText,
-                      eventType === type.value && styles.eventTypeTextActive
-                    ]}>
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Descripción */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Descripción *</Text>
+              <Text style={styles.sectionTitle}>Notas Adicionales (Opcional)</Text>
+              
               <TextInput
-                style={styles.textArea}
-                placeholder="Describe el evento (ej: Paquete llegó al aeropuerto, procesado para embarque)"
-                value={description}
-                onChangeText={setDescription}
+                style={[styles.input, styles.textArea]}
+                placeholder="Agregar notas sobre el evento..."
+                value={notes}
+                onChangeText={setNotes}
+                placeholderTextColor={BOA_COLORS.gray}
                 multiline
                 numberOfLines={3}
-                placeholderTextColor={BOA_COLORS.gray}
               />
             </View>
 
-            {/* Información de vuelo (solo para aeropuertos) */}
-            {selectedPoint?.type === 'airport' && (
+            {/* Si es entrega, pedir CI y firma */}
+            {selectedEventType === 'delivered' && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Información de Vuelo</Text>
-                
+                <Text style={styles.sectionTitle}>Confirmación de Entrega</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Número de vuelo (ej: BOA-123)"
-                  value={flightNumber}
-                  onChangeText={setFlightNumber}
+                  placeholder="CI del destinatario (obligatorio)"
+                  value={recipientCI}
+                  onChangeText={setRecipientCI}
                   placeholderTextColor={BOA_COLORS.gray}
+                  keyboardType="default"
                 />
-
-                <Text style={styles.inputLabel}>Aerolínea:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.airlinesContainer}>
-                  {AIRLINES.map((airline) => (
                     <TouchableOpacity
-                      key={airline.code}
-                      style={[
-                        styles.airlineButton,
-                        selectedAirline === airline.code && styles.airlineButtonActive
-                      ]}
-                      onPress={() => setSelectedAirline(airline.code)}
-                    >
-                      <Text style={[
-                        styles.airlineButtonText,
-                        selectedAirline === airline.code && styles.airlineButtonTextActive
-                      ]}>
-                        {airline.name}
-                      </Text>
+                  style={[styles.scanButton, { marginTop: 12, marginBottom: 0 }]}
+                  onPress={() => setShowSignature(true)}
+                >
+                  <MaterialIcons name="gesture" size={24} color={BOA_COLORS.white} />
+                  <Text style={styles.scanButtonText}>{signature ? 'Modificar Firma' : 'Agregar Firma Digital (opcional)'}</Text>
                     </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Próximo destino"
-                  value={nextDestination}
-                  onChangeText={setNextDestination}
-                  placeholderTextColor={BOA_COLORS.gray}
-                />
+                {signature && (
+                  <View style={{ alignItems: 'center', marginTop: 8 }}>
+                    <Text style={{ color: BOA_COLORS.primary, fontSize: 12, marginBottom: 4 }}>Firma capturada:</Text>
+                    <View style={{ borderWidth: 1, borderColor: BOA_COLORS.primary, borderRadius: 8, overflow: 'hidden', backgroundColor: '#fff' }}>
+                      <Image 
+                        source={{ uri: signature }} 
+                        style={{ width: 200, height: 80 }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  </View>
+                )}
               </View>
             )}
 
-            {/* Notas adicionales */}
+            {/* Vista Previa del Evento */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Notas Adicionales</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Información adicional, observaciones, etc."
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={2}
-                placeholderTextColor={BOA_COLORS.gray}
-              />
+              <Text style={styles.sectionTitle}>Vista Previa del Evento</Text>
+              
+              <View style={styles.previewCard}>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Paquete:</Text>
+                  <Text style={styles.previewValue}>{trackingNumber || 'Número de tracking no disponible'}</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Evento:</Text>
+                  <Text style={styles.previewValue}>{getEventTypeInfo(selectedEventType).label}</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Ubicación:</Text>
+                  <Text style={styles.previewValue}>{currentLocation || 'No especificada'}</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Operador:</Text>
+                  <Text style={styles.previewValue}>{operator}</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Fecha/Hora:</Text>
+                  <Text style={styles.previewValue}>{new Date().toLocaleString()}</Text>
+                </View>
+                {notes && (
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>Notas:</Text>
+                    <Text style={styles.previewValue}>{notes}</Text>
+                  </View>
+                )}
+                {selectedEventType === 'delivered' && recipientCI && (
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>CI Destinatario:</Text>
+                    <Text style={styles.previewValue}>{recipientCI}</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </ScrollView>
 
-          {/* Botones de acción */}
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <MaterialIcons name="save" size={16} color={BOA_COLORS.white} />
-              <Text style={styles.submitButtonText}>Registrar Evento</Text>
+          {/* Botón de Registro */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.registerButton, isLoading && styles.registerButtonDisabled]}
+              onPress={handleRegisterEvent}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Text style={styles.registerButtonText}>Registrando...</Text>
+              ) : (
+                <>
+                  <MaterialIcons name="save" size={20} color={BOA_COLORS.white} />
+                  <Text style={styles.registerButtonText}>Registrar Evento</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      {/* Modal de Firma */}
+      {showSignature && (
+        <Modal visible={showSignature} animationType="slide" transparent>
+          <View style={styles.signatureOverlay}>
+            <View style={styles.signatureModal}>
+              <View style={styles.signatureHeader}>
+                <Text style={styles.signatureTitle}>Capturar Firma</Text>
+                <TouchableOpacity onPress={() => setShowSignature(false)}>
+                  <MaterialIcons name="close" size={24} color={BOA_COLORS.gray} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.signatureContainer}>
+                <Signature
+                  onOK={handleSignatureOK}
+                  onEmpty={() => Alert.alert('Firma vacía', 'Por favor, dibuja una firma.')}
+                  descriptionText="Firma del destinatario"
+                  clearText="Limpiar"
+                  confirmText="Guardar"
+                  webStyle={`
+                    .m-signature-pad {
+                      margin: 0;
+                      box-shadow: none;
+                      border: 1px solid #e0e0e0;
+                      border-radius: 8px;
+                    }
+                    .m-signature-pad--body {
+                      border: none;
+                    }
+                    .m-signature-pad--footer {
+                      display: flex !important;
+                      justify-content: space-between;
+                      padding: 10px;
+                      background-color: #f5f5f5;
+                    }
+                    .m-signature-pad--footer .button {
+                      background-color: #007AFF;
+                      color: white;
+                      border: none;
+                      padding: 8px 16px;
+                      border-radius: 6px;
+                      font-size: 14px;
+                      font-weight: 500;
+                      cursor: pointer;
+                    }
+                    .m-signature-pad--footer .button.clear {
+                      background-color: #FF3B30;
+                    }
+                    .m-signature-pad--footer .button:hover {
+                      opacity: 0.8;
+                    }
+                  `}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </Modal>
   );
 };
@@ -329,75 +500,74 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: BOA_COLORS.dark,
   },
-  closeButton: {
+  close: {
     padding: 4,
   },
   content: {
     padding: 20,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: BOA_COLORS.dark,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  infoRow: {
+  trackingPreview: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: BOA_COLORS.light,
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 8,
   },
-  infoText: {
-    fontSize: 14,
-    color: BOA_COLORS.gray,
+  trackingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: BOA_COLORS.primary,
     marginLeft: 8,
   },
-  pointsContainer: {
-    marginBottom: 10,
-  },
-  pointButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: BOA_COLORS.primary,
+  operatorInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 80,
   },
-  pointButtonActive: {
-    backgroundColor: BOA_COLORS.primary,
-  },
-  pointButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: BOA_COLORS.primary,
-    marginTop: 4,
-  },
-  pointButtonTextActive: {
-    color: BOA_COLORS.white,
-  },
-  pointButtonSubtext: {
-    fontSize: 10,
+  operatorText: {
+    fontSize: 14,
     color: BOA_COLORS.gray,
+    marginLeft: 4,
+  },
+  inputGroup: {
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: BOA_COLORS.lightGray,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: BOA_COLORS.lightGray,
+  },
+  coordinatesText: {
+    fontSize: 12,
+    color: BOA_COLORS.gray,
+    fontStyle: 'italic',
   },
   eventTypesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   eventTypeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: 8,
+    marginRight: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: BOA_COLORS.lightGray,
-    minWidth: '48%',
+    backgroundColor: BOA_COLORS.white,
   },
   eventTypeButtonActive: {
     backgroundColor: BOA_COLORS.primary,
@@ -406,90 +576,103 @@ const styles = StyleSheet.create({
   eventTypeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: BOA_COLORS.dark,
-    marginLeft: 8,
+    color: BOA_COLORS.primary,
+    marginLeft: 6,
   },
   eventTypeTextActive: {
     color: BOA_COLORS.white,
   },
-  input: {
-    backgroundColor: BOA_COLORS.lightGray,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 10,
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: BOA_COLORS.dark,
+  scanButton: {
+    backgroundColor: BOA_COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  scanButtonText: {
+    color: BOA_COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  previewCard: {
+    backgroundColor: BOA_COLORS.light,
+    borderRadius: 8,
+    padding: 16,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 8,
   },
-  textArea: {
-    backgroundColor: BOA_COLORS.lightGray,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    textAlignVertical: 'top',
-    minHeight: 80,
-  },
-  airlinesContainer: {
-    marginBottom: 10,
-  },
-  airlineButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: BOA_COLORS.gray,
-  },
-  airlineButtonActive: {
-    backgroundColor: BOA_COLORS.primary,
-    borderColor: BOA_COLORS.primary,
-  },
-  airlineButtonText: {
-    fontSize: 12,
+  previewLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     color: BOA_COLORS.gray,
   },
-  airlineButtonTextActive: {
-    color: BOA_COLORS.white,
+  previewValue: {
+    fontSize: 14,
+    color: BOA_COLORS.dark,
+    flex: 1,
+    textAlign: 'right',
   },
-  actions: {
-    flexDirection: 'row',
+  footer: {
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: BOA_COLORS.lightGray,
   },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: BOA_COLORS.gray,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  cancelButtonText: {
-    color: BOA_COLORS.gray,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  submitButton: {
-    flex: 2,
+  registerButton: {
+    backgroundColor: BOA_COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BOA_COLORS.primary,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 8,
   },
-  submitButtonText: {
+  registerButtonDisabled: {
+    backgroundColor: BOA_COLORS.gray,
+  },
+  registerButtonText: {
     color: BOA_COLORS.white,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 8,
+  },
+  signatureOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signatureModal: {
+    width: '90%',
+    height: '70%',
+    backgroundColor: BOA_COLORS.white,
+    borderRadius: 16,
+    elevation: 10,
+  },
+  signatureHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: BOA_COLORS.lightGray,
+  },
+  signatureTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: BOA_COLORS.dark,
+  },
+  signatureContainer: {
+    flex: 1,
+    padding: 20,
   },
 }); 

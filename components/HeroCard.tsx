@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 
@@ -7,17 +7,13 @@ const { width } = Dimensions.get('window');
 
 interface HeroCardProps {
   title: string;
-  subtitle: string;
   description: string;
-  icon: string;
+  buttonText: string;
+  iconName: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
 }
 
-export const HeroCard: React.FC<HeroCardProps> = ({
-  title,
-  subtitle,
-  description,
-  icon
-}) => {
+export const HeroCard: React.FC<HeroCardProps> = ({ title, description, buttonText, iconName, onPress }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -59,21 +55,13 @@ export const HeroCard: React.FC<HeroCardProps> = ({
       <View style={styles.gradientBackground}>
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <MaterialIcons name={icon as any} size={40} color={BOA_COLORS.white} />
+            <MaterialIcons name={iconName} size={32} color={BOA_COLORS.primary} style={styles.icon} />
           </View>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
           <Text style={styles.description}>{description}</Text>
-          <View style={styles.badgeContainer}>
-            <View style={styles.badge}>
-              <MaterialIcons name="star" size={16} color={BOA_COLORS.warning} />
-              <Text style={styles.badgeText}>Premium</Text>
-            </View>
-            <View style={styles.badge}>
-              <MaterialIcons name="security" size={16} color={BOA_COLORS.success} />
-              <Text style={styles.badgeText}>Seguro</Text>
-            </View>
-          </View>
+          <TouchableOpacity style={styles.button} onPress={onPress}>
+            <Text style={styles.buttonText}>{buttonText}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Animated.View>
@@ -115,13 +103,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
-  subtitle: {
-    fontSize: 16,
-    color: BOA_COLORS.light,
-    textAlign: 'center',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
   description: {
     fontSize: 15,
     color: BOA_COLORS.light,
@@ -129,23 +110,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 16,
   },
-  badgeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
+  button: {
+    backgroundColor: BOA_COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  badgeText: {
-    color: BOA_COLORS.white,
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
+  icon: {
+    marginBottom: 12,
   },
 }); 
