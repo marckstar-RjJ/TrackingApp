@@ -37,7 +37,7 @@ export const AdminReturnsScreen = () => {
     const fetchRequests = useCallback(async (status: string) => {
         setIsLoading(true);
         try {
-            let url = `http://192.168.100.16:3000/api/returns/requests`;
+            let url = `https://b113-66-203-113-32.ngrok-free.app/api/returns/requests`;
             if (status !== 'all') {
                 url += `?status=${status}`;
             }
@@ -81,7 +81,7 @@ export const AdminReturnsScreen = () => {
                     text: "Aprobar",
                     onPress: async () => {
                         try {
-                            const res = await fetch(`http://192.168.100.16:3000/api/returns/requests/${id}/approve`, { method: 'PUT' });
+                            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/returns/requests/${id}/approve`, { method: 'PUT' });
                             if (res.ok) {
                                 Alert.alert('Éxito', 'La devolución ha sido aprobada.');
                                 fetchRequests(filter);
@@ -100,7 +100,7 @@ export const AdminReturnsScreen = () => {
             return;
         }
         try {
-            const res = await fetch(`http://192.168.100.16:3000/api/returns/requests/${selectedRequest.id}/reject`, {
+            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/returns/requests/${selectedRequest.id}/reject`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment: rejectionComment }),

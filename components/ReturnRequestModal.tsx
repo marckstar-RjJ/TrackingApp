@@ -48,7 +48,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ visible,
         }
         setIsLoading(true);
         try {
-            const res = await fetch(`http://192.168.100.16:3000/api/packages/check-return/${trackingNumber}`);
+            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/check-return/${trackingNumber}`);
             const data = await res.json();
             if (res.ok) {
                 setPackageInfo({ cost: data.cost, status: data.status, elegible: data.elegible });
@@ -70,7 +70,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ visible,
         }
         setIsLoading(true);
         try {
-            const res = await fetch('http://192.168.100.16:3000/api/returns/request', {
+            const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/returns/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

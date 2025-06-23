@@ -16,7 +16,7 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const res = await fetch('http://192.168.100.16:3000/api/packages');
+        const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages');
         const data = await res.json();
         if (Array.isArray(data)) {
           setRealPackages(data);

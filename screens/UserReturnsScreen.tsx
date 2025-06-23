@@ -28,7 +28,7 @@ export const UserReturnsScreen = ({ route }: any) => {
         if (!currentUser?.email) return;
         setIsLoading(true);
         try {
-            const response = await fetch(`http://192.168.100.16:3000/api/returns/user/${currentUser.email}`);
+            const response = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/returns/user/${currentUser.email}`);
             const data = await response.json();
             if (response.ok) {
                 setReturns(data);

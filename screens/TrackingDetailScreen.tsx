@@ -187,7 +187,7 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
 
     setIsLoading(true);
     try {
-      const res = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingItem.trackingNumber}`);
+      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingItem.trackingNumber}`);
       const data = await res.json();
       
       if (data) {

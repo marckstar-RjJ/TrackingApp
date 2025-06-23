@@ -145,7 +145,7 @@ export const PreRegistrationScreen = ({ route, navigation }: any) => {
         return `PRE-${year}${month}${day}-${random}`;
     };
 
-    const API_URL = 'http://192.168.100.16:3000/api/preregistrations';
+    const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api/preregistrations';
 
     const handleNext = () => {
         if (currentStep === 1 && (!formData.senderName.trim() || !formData.senderPhone.trim() || !formData.senderAddress.trim())) {

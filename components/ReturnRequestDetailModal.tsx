@@ -49,7 +49,7 @@ export const ReturnRequestDetailModal: React.FC<ReturnRequestDetailModalProps> =
     const fetchPackageDetails = async (trackingNumber: string) => {
         setIsLoading(true);
         try {
-            const res = await fetch(`http://192.168.100.16:3000/api/packages/${trackingNumber}`);
+            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/${trackingNumber}`);
             const data = await res.json();
             if (res.ok) {
                 setPackageDetails(data);

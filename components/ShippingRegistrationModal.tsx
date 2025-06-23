@@ -191,7 +191,7 @@ export const ShippingRegistrationModal: React.FC<ShippingRegistrationModalProps>
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
 
   // URL del backend (ajusta si es necesario)
-  const API_URL = 'http://192.168.100.16:3000/api/packages';
+  const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api/packages';
 
   const generateTrackingNumber = (): string => {
     const now = new Date();

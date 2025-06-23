@@ -13,7 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 
 // URL de la API
-const API_URL = 'http://192.168.100.16:3000/api';
+const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
 
 interface PreRegistration {
   id: number;

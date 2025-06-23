@@ -42,7 +42,7 @@ export const UserPackagesScreen: React.FC<UserPackagesScreenProps> = ({ navigati
   const fetchUserPreRegistrations = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://192.168.100.16:3000/api/preregistrations/${currentUser.email}`);
+      const response = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/preregistrations/${currentUser.email}`);
       const data = await response.json();
       if (response.ok) {
         setPackages(data);
@@ -95,7 +95,7 @@ export const UserPackagesScreen: React.FC<UserPackagesScreenProps> = ({ navigati
           onPress: async () => {
             setDeletingId(pkg.id);
             try {
-              const res = await fetch(`http://192.168.100.16:3000/api/preregistrations/${pkg.id}`, { method: 'DELETE' });
+              const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/preregistrations/${pkg.id}`, { method: 'DELETE' });
               if (res.ok) {
                 setPackages((prev) => prev.filter((p: any) => p.id !== pkg.id));
               } else {

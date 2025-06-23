@@ -44,7 +44,7 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
   onClose,
   onEventCreated,
   trackingNumber,
-  operator,
+  operator: initialOperator,
   currentLocation: initialLocation,
 }) => {
   const [currentLocation, setCurrentLocation] = useState<string>(initialLocation || '');
@@ -55,6 +55,7 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
   const [recipientCI, setRecipientCI] = useState('');
   const [signature, setSignature] = useState<string | null>(null);
   const [showSignature, setShowSignature] = useState(false);
+  const [operator, setOperator] = useState(initialOperator);
 
   // Debug: verificar el valor del trackingNumber
   console.log('TrackingEventModal - trackingNumber:', trackingNumber);
@@ -160,7 +161,7 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
               timestamp: new Date().toISOString(), // Enviar timestamp desde frontend
             };
             try {
-              const res = await fetch('http://192.168.100.16:3000/api/packages/events', {
+              const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)

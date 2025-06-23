@@ -47,7 +47,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, tracki
     }
 
     try {
-      const response = await fetch('http://192.168.100.16:3000/api/claims', {
+      const response = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/claims', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

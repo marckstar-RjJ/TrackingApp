@@ -13,7 +13,7 @@ const InternalAlertsScreen = () => {
   const fetchInternalAlerts = useCallback(async (status: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`http://192.168.100.16:3000/api/alerts/type/internal_monitoring?status=${status}`);
+      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/alerts/type/internal_monitoring?status=${status}`);
       if (!res.ok) {
         setInternalAlerts([]);
         return;
@@ -55,7 +55,7 @@ const InternalAlertsScreen = () => {
 
   const handleSolveAlert = async (alertId: number) => {
     try {
-      const res = await fetch(`http://192.168.100.16:3000/api/alerts/${alertId}/solve`, {
+      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/alerts/${alertId}/solve`, {
         method: 'PUT',
       });
       if (res.ok) {

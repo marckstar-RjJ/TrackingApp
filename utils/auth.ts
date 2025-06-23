@@ -50,7 +50,7 @@ export const validateAdminCredentials = (email: string, password: string): boole
   return user?.role === 'admin';
 };
 
-const API_URL = 'http://192.168.100.16:3000/api/users';
+const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api/users';
 
 export async function loginUser(email: string, password: string) {
   try {

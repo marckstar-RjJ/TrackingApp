@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 
 // FIXME: Replace with your actual IP address
-const API_URL = 'http://192.168.100.16:3000/api';
+const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
 
 export const UserClaimsScreen = ({ route, navigation }: any) => {
   const { currentUser, handleLogout } = route.params;

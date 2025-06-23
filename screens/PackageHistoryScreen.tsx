@@ -116,7 +116,7 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
     console.log('Enviando evento editado:', updatedEvent);
 
     try {
-      const res = await fetch(`http://192.168.100.16:3000/api/packages/events/${editingEvent.id}`, {
+      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/events/${editingEvent.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedEvent),
@@ -126,7 +126,7 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
       if (res.ok) {
         Alert.alert('Evento actualizado', 'El evento fue actualizado correctamente.');
         // Refrescar eventos
-        const refreshed = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingNumber}`);
+        const refreshed = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingNumber}`);
         const data = await refreshed.json();
         if (data && Array.isArray(data.events)) {
           const events = data.events.map((ev: any) => ({
@@ -171,12 +171,12 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
           onPress: async () => {
             console.log('Confirmando eliminación del evento:', eventId);
             try {
-              const res = await fetch(`http://192.168.100.16:3000/api/packages/events/${eventId}`, { method: 'DELETE' });
+              const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/events/${eventId}`, { method: 'DELETE' });
               console.log('Respuesta de eliminación:', res.status);
               if (res.ok) {
                 Alert.alert('Evento eliminado', 'El evento fue eliminado correctamente.');
                 // Refrescar eventos
-                const refreshed = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingNumber}`);
+                const refreshed = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingNumber}`);
                 const data = await refreshed.json();
                 if (data && Array.isArray(data.events)) {
                   const events = data.events.map((ev: any) => ({
@@ -228,7 +228,7 @@ export const PackageHistoryScreen: React.FC<PackageHistoryScreenProps> = ({ navi
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch(`http://192.168.100.16:3000/api/packages/tracking/${trackingNumber}`);
+        const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingNumber}`);
         const data = await res.json();
         if (data && Array.isArray(data.events)) {
           // Convertir timestamp a Date

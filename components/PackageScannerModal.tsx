@@ -85,7 +85,7 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
       setRecipientCI('');
       setSignature(null);
       // Fetch tracking numbers reales
-      fetch('http://192.168.100.16:3000/api/packages')
+      fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages')
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -183,7 +183,7 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
               timestamp: new Date().toISOString(),
             };
             try {
-              const res = await fetch('http://192.168.100.16:3000/api/packages/events', {
+              const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
