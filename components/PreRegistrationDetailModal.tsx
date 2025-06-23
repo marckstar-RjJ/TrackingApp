@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
+import { BACKEND_URL } from '../utils/backend';
 
 // URL de la API
-const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
+const API_URL = BACKEND_URL;
 
 interface PreRegistration {
   id: number;

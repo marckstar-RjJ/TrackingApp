@@ -5,9 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 import { Header } from '../components/Header';
 import { ClaimResponseModal } from '../components/ClaimResponseModal';
-
-// FIXME: Replace with your actual IP address
-const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
+import { BACKEND_URL } from '../utils/backend';
 
 export const AdminClaimsScreen = ({ route, navigation }: any) => {
   const { currentUser, handleLogout } = route.params;
@@ -21,7 +19,7 @@ export const AdminClaimsScreen = ({ route, navigation }: any) => {
 
   const fetchClaims = async () => {
     try {
-      const response = await fetch(`${API_URL}/claims`);
+      const response = await fetch(`${BACKEND_URL}/claims`);
       const data = await response.json();
       if (response.ok && Array.isArray(data)) {
         setClaims(data);
@@ -60,7 +58,7 @@ export const AdminClaimsScreen = ({ route, navigation }: any) => {
   const handleRespond = async (response: string) => {
     if (!selectedClaim) return;
     try {
-      await fetch(`${API_URL}/claims/${selectedClaim.id}/respond`, {
+      await fetch(`${BACKEND_URL}/claims/${selectedClaim.id}/respond`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

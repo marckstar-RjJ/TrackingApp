@@ -5,6 +5,7 @@ import { BOA_COLORS } from '../theme';
 import { Header } from '../components/Header';
 import { ShippingRegistrationModal } from '../components/ShippingRegistrationModal';
 import { PackageScannerModal } from '../components/PackageScannerModal';
+import { BACKEND_URL } from '../utils/backend';
 
 export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) => {
   const [showShippingModal, setShowShippingModal] = useState(false);
@@ -16,7 +17,7 @@ export const HomeAdminScreen = ({ currentUser, navigation, handleLogout }: any) 
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages');
+        const res = await fetch(`${BACKEND_URL}/packages`);
         const data = await res.json();
         if (Array.isArray(data)) {
           setRealPackages(data);

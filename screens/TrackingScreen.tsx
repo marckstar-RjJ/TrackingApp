@@ -18,6 +18,7 @@ import { User, isAdmin, isPublic } from '../utils/auth';
 import { TrackingDetailScreen } from './TrackingDetailScreen';
 import { calculateProgress } from '../utils/tracking';
 import { FullScreenLoader } from '../components/FullScreenLoader';
+import { BACKEND_URL } from '../utils/backend';
 
 const { width } = Dimensions.get('window');
 
@@ -143,7 +144,7 @@ export const TrackingScreen = ({ navigation, route }: any) => {
     const fetchPackages = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages');
+        const res = await fetch(`${BACKEND_URL}/packages`);
         const data = await res.json();
         if (Array.isArray(data)) {
           // Adaptar los datos del backend al formato esperado

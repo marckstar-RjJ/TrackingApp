@@ -14,6 +14,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme/colors';
 import { Picker } from '@react-native-picker/picker';
+import { BACKEND_URL } from '../utils/backend';
 
 interface ClaimModalProps {
   visible: boolean;
@@ -47,7 +48,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ visible, onClose, tracki
     }
 
     try {
-      const response = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/claims', {
+      const response = await fetch(`${BACKEND_URL}/claims`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

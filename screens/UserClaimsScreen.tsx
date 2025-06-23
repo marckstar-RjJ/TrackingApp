@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, RefreshControl, StyleSheet, ImageBackground } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
-
-// FIXME: Replace with your actual IP address
-const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
+import { BACKEND_URL } from '../utils/backend';
 
 export const UserClaimsScreen = ({ route, navigation }: any) => {
   const { currentUser, handleLogout } = route.params;
@@ -15,7 +13,7 @@ export const UserClaimsScreen = ({ route, navigation }: any) => {
   const fetchClaims = async () => {
     if (!currentUser?.email) return;
     try {
-      const response = await fetch(`${API_URL}/claims/user/${currentUser.email}`);
+      const response = await fetch(`${BACKEND_URL}/claims/user/${currentUser.email}`);
       const data = await response.json();
       if (response.ok && Array.isArray(data)) {
         setClaims(data);

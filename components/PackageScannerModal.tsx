@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { BOA_COLORS } from '../theme';
 import Signature from 'react-native-signature-canvas';
+import { BACKEND_URL } from '../utils/backend';
 
 interface TrackingEvent {
   id: string;
@@ -85,7 +86,7 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
       setRecipientCI('');
       setSignature(null);
       // Fetch tracking numbers reales
-      fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages')
+      fetch(`${BACKEND_URL}/packages`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -183,7 +184,7 @@ export const PackageScannerModal: React.FC<PackageScannerModalProps> = ({
               timestamp: new Date().toISOString(),
             };
             try {
-              const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages/events', {
+              const res = await fetch(`${BACKEND_URL}/packages/events`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)

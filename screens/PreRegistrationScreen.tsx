@@ -15,6 +15,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 import { Picker } from '@react-native-picker/picker';
+import { BACKEND_URL } from '../utils/backend';
 
 // Interfaces y datos
 interface ShippingData {
@@ -145,7 +146,7 @@ export const PreRegistrationScreen = ({ route, navigation }: any) => {
         return `PRE-${year}${month}${day}-${random}`;
     };
 
-    const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api/preregistrations';
+    const API_URL = `${BACKEND_URL}/preregistrations`;
 
     const handleNext = () => {
         if (currentStep === 1 && (!formData.senderName.trim() || !formData.senderPhone.trim() || !formData.senderAddress.trim())) {

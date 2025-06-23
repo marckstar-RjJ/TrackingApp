@@ -4,7 +4,7 @@ export default {
     slug: "BoaTrackingApp-New",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/logo_boa.png",
+    icon: "./assets/logo_app2.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {

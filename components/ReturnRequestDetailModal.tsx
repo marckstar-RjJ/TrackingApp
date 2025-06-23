@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
+import { BACKEND_URL } from '../utils/backend';
 
 interface ReturnRequest {
     id: number;
@@ -49,7 +50,7 @@ export const ReturnRequestDetailModal: React.FC<ReturnRequestDetailModalProps> =
     const fetchPackageDetails = async (trackingNumber: string) => {
         setIsLoading(true);
         try {
-            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/${trackingNumber}`);
+            const res = await fetch(`${BACKEND_URL}/packages/${trackingNumber}`);
             const data = await res.json();
             if (res.ok) {
                 setPackageDetails(data);

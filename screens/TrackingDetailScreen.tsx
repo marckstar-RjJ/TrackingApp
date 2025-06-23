@@ -24,6 +24,7 @@ import { shareAsync } from 'expo-sharing';
 import { FullScreenLoader } from '../components/FullScreenLoader';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { BACKEND_URL } from '../utils/backend';
 
 interface TrackingDetailScreenProps {
   navigation: any;
@@ -187,7 +188,7 @@ export const TrackingDetailScreen: React.FC<TrackingDetailScreenProps> = ({ navi
 
     setIsLoading(true);
     try {
-      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingItem.trackingNumber}`);
+      const res = await fetch(`${BACKEND_URL}/packages/tracking/${trackingItem.trackingNumber}`);
       const data = await res.json();
       
       if (data) {

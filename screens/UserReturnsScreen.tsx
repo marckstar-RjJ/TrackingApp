@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
 import * as Print from 'expo-print';
 import { shareAsync } from 'expo-sharing';
+import { BACKEND_URL } from '../utils/backend';
 
 interface Return {
     id: number;
@@ -28,7 +29,7 @@ export const UserReturnsScreen = ({ route }: any) => {
         if (!currentUser?.email) return;
         setIsLoading(true);
         try {
-            const response = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/returns/user/${currentUser.email}`);
+            const response = await fetch(`${BACKEND_URL}/returns/user/${currentUser.email}`);
             const data = await response.json();
             if (response.ok) {
                 setReturns(data);

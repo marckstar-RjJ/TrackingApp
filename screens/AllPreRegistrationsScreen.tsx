@@ -17,9 +17,10 @@ import * as Clipboard from 'expo-clipboard';
 import { BOA_COLORS } from '../theme';
 import { FullScreenLoader } from '../components/FullScreenLoader';
 import { PreRegistrationDetailModal } from '../components/PreRegistrationDetailModal';
+import { BACKEND_URL } from '../utils/backend';
 
 // URL de la API (ajustar si es necesario)
-const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api';
+const API_URL = BACKEND_URL;
 
 // Definimos el tipo para un pre-registro
 interface PreRegistration {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BOA_COLORS } from '../theme';
+import { BACKEND_URL } from '../utils/backend';
 
 interface ReturnRequestModalProps {
     visible: boolean;
@@ -48,7 +49,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ visible,
         }
         setIsLoading(true);
         try {
-            const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/check-return/${trackingNumber}`);
+            const res = await fetch(`${BACKEND_URL}/packages/check-return/${trackingNumber}`);
             const data = await res.json();
             if (res.ok) {
                 setPackageInfo({ cost: data.cost, status: data.status, elegible: data.elegible });
@@ -70,7 +71,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ visible,
         }
         setIsLoading(true);
         try {
-            const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/returns/request', {
+            const res = await fetch(`${BACKEND_URL}/returns/request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

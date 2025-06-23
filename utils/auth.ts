@@ -1,3 +1,4 @@
+import { BACKEND_URL } from './backend';
 // Sistema de autenticación para BOA Tracking
 
 export interface User {
@@ -50,7 +51,7 @@ export const validateAdminCredentials = (email: string, password: string): boole
   return user?.role === 'admin';
 };
 
-const API_URL = 'https://b113-66-203-113-32.ngrok-free.app/api/users';
+const API_URL = `${BACKEND_URL}/users`;
 
 export async function loginUser(email: string, password: string) {
   try {

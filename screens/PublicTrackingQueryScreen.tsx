@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FullScreenLoader } from '../components/FullScreenLoader';
+import { BACKEND_URL } from '../utils/backend';
 
 // Tema de colores Boa
 const BOA_COLORS = {
@@ -65,7 +66,7 @@ export const PublicTrackingQueryScreen: React.FC<PublicTrackingQueryScreenProps>
 
     setIsLoading(true);
     try {
-      const res = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${trackingNumber.trim()}`);
+      const res = await fetch(`${BACKEND_URL}/packages/tracking/${trackingNumber.trim()}`);
       if (!res.ok) {
       Alert.alert(
         'Paquete no encontrado',
@@ -111,7 +112,7 @@ export const PublicTrackingQueryScreen: React.FC<PublicTrackingQueryScreenProps>
 
   const handleScanQR = async () => {
     try {
-      const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages');
+      const res = await fetch(`${BACKEND_URL}/packages`);
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) {
         Alert.alert('Sin paquetes', 'No hay paquetes registrados en el sistema para simular el escaneo.');
@@ -130,7 +131,7 @@ export const PublicTrackingQueryScreen: React.FC<PublicTrackingQueryScreenProps>
             onPress: async () => {
               setIsLoading(true);
               try {
-                const res2 = await fetch(`https://b113-66-203-113-32.ngrok-free.app/api/packages/tracking/${tracking}`);
+                const res2 = await fetch(`${BACKEND_URL}/packages/tracking/${tracking}`);
                 if (!res2.ok) {
                   Alert.alert('Paquete no encontrado', 'El número de seguimiento ingresado no se encuentra en nuestro sistema.');
                   setIsLoading(false);

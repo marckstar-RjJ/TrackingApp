@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { BOA_COLORS } from '../theme';
 import Signature from 'react-native-signature-canvas';
+import { BACKEND_URL } from '../utils/backend';
 
 interface TrackingEvent {
   id: string;
@@ -161,7 +162,7 @@ export const TrackingEventModal: React.FC<TrackingEventModalProps> = ({
               timestamp: new Date().toISOString(), // Enviar timestamp desde frontend
             };
             try {
-              const res = await fetch('https://b113-66-203-113-32.ngrok-free.app/api/packages/events', {
+              const res = await fetch(`${BACKEND_URL}/packages/events`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
